@@ -431,7 +431,7 @@ async function doLogin(){
   if(!u||!p){document.getElementById('loginError').textContent='Preencha todos os campos';return;}
   const data=await sGet(USERS_PREFIX+u);
   if(!data||data.senha!==p){document.getElementById('loginError').textContent='Usuário ou senha inválidos';return;}
-  localStorage.setItem('rdo_user',u);
+  localStorage.setItem('rdo_admin_user',u);
   currentUser=u;
   enterApp();
 }
@@ -443,13 +443,13 @@ async function doRegister(){
   const existing=await sGet(USERS_PREFIX+u);
   if(existing){document.getElementById('regError').textContent='Usuário já existe';return;}
   await sSet(USERS_PREFIX+u,{senha:p});
-  localStorage.setItem('rdo_user',u);
+  localStorage.setItem('rdo_admin_user',u);
   currentUser=u;
   enterApp();
 }
 
 function doLogout(){
-  localStorage.removeItem('rdo_user');
+  localStorage.removeItem('rdo_admin_user');
   currentUser=null;
   document.getElementById('appScreen').style.display='none';
   document.getElementById('loginScreen').style.display='';
@@ -872,7 +872,7 @@ document.addEventListener('keydown',e=>{
 
 (async()=>{
   await ensureDefaultAdmin();
-  const saved=localStorage.getItem('rdo_user');
+  const saved=localStorage.getItem('rdo_admin_user');
   if(saved){currentUser=saved;enterApp();}
 })();
 </script>
