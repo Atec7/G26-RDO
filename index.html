@@ -489,6 +489,18 @@ input[type=file]::-webkit-file-upload-button{display:none}
   <div class="img-viewer-counter" id="img-viewer-counter"></div>
 </div>
 
+<!-- Summary Modal -->
+<div class="modal-overlay" id="summary-modal">
+  <div class="modal-box" style="max-width:500px">
+    <button class="modal-close" onclick="closeSummary()">✕</button>
+    <h2 style="color:var(--teal)">✓ RDO Salvo!</h2>
+    <div id="summary-content"></div>
+    <div style="text-align:center;margin-top:16px">
+      <button class="btn-primary" onclick="closeSummary()" style="max-width:200px;margin:0 auto;display:block">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Toast -->
 <div id="toast"></div>
 
@@ -1349,6 +1361,7 @@ async function saveRDO(){
 
     toast('RDO salvo com sucesso!','success');
     updatePendingIndicator();
+    showSummary(record);
     resetForm();
   }catch(e){
     console.error(e);
@@ -1387,6 +1400,53 @@ function resetForm(){
   document.querySelectorAll('#clima-opts .check-item').forEach(e=>e.classList.remove('checked'));
   document.querySelectorAll('#impedimento-opts .check-item').forEach(e=>e.classList.remove('checked'));
   updateIdentLabel();
+}
+
+// ==================== SUMMARY MODAL ====================
+function showSummary(record){
+  const c=document.getElementById('summary-content');
+  let html='';
+
+  html+='<div class="detail-grid" style="margin-bottom:16px">';
+  html+='<div class="detail-item"><label>Data</label><p>'+formatDate(record.data)+'</p></div>';
+  html+='<div class="detail-item"><label>OC</label><p>'+escapeHtml(record.oc||'—')+'</p></div>';
+  html+='<div class="detail-item"><label>Equipe</label><p>'+escapeHtml(record.equipe||'—')+'</p></div>';
+  html+='<div class="detail-item"><label>Cidade</label><p>'+escapeHtml(record.cidade||'—')+'</p></div>';
+  html+='<div class="detail-item"><label>Responsável</label><p>'+escapeHtml(record.responsavel||'—')+'</p></div>';
+  html+='<div class="detail-item"><label>Tipo</label><p>'+escapeHtml(record.tipoOrdem||'—')+'</p></div>';
+  if(record.kmInicial||record.kmFinal){
+    html+='<div class="detail-item"><label>KM Inicial</label><p style="font-family:var(--mono)">'+(record.kmInicial||0)+'</p></div>';
+    html+='<div class="detail-item"><label>KM Final</label><p style="font-family:var(--mono)">'+(record.kmFinal||0)+'</p></div>';
+  }
+  html+='</div>';
+
+  if(record.atividades&&record.atividades.length>0){
+    html+='<div style="border-top:1px solid var(--line-soft);padding-top:12px">';
+    html+='<div style="font-size:.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Atividades Executadas</div>';
+    record.atividades.forEach(a=>{
+      const total=a.total||(a.qtd||0)*(a.valor||0);
+      html+='<div class="act-row-detail">';
+      html+='<span style="font-size:.88rem">'+escapeHtml(a.cod)+' — '+escapeHtml(a.descricao)+'</span>';
+      html+='<span style="font-family:var(--mono);white-space:nowrap;font-size:.88rem">'+a.qtd+'x '+fmtMoney(a.valor)+' = <strong style="color:var(--teal)">'+fmtMoney(total)+'</strong></span>';
+      html+='</div>';
+    });
+    html+='<div style="text-align:right;font-size:1rem;font-weight:700;padding:10px 0">';
+    html+='Total do Dia: <span style="color:var(--teal);font-family:var(--mono)">'+fmtMoney(record.valorTotal)+'</span>';
+    html+='</div>';
+    html+='</div>';
+  }
+
+  if(!navigator.onLine){
+    html+='<div style="text-align:center;margin-top:12px;padding:10px;background:var(--amber-dim);border-radius:8px;color:var(--amber);font-size:.82rem;font-weight:600">Salvo offline — será sincronizado quando conectar</div>';
+  }
+
+  c.innerHTML=html;
+  document.getElementById('summary-modal').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeSummary(){
+  document.getElementById('summary-modal').classList.remove('open');
+  document.body.style.overflow='';
 }
 
 // ==================== DETAIL MODAL ====================

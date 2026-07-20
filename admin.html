@@ -157,6 +157,8 @@ tr.data-row:hover{background:var(--panel-alt)}
 .img-viewer-counter{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,.8);font-size:.85rem;background:rgba(0,0,0,.5);padding:4px 12px;border-radius:12px}
 
 .empty-msg{color:var(--text-muted);text-align:center;padding:24px;font-size:.9rem}
+#editModal .field{display:flex;flex-direction:column;gap:4px}
+#editModal .field label{font-size:.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.3px}
 .offline-tag{display:inline-block;font-size:.7rem;color:var(--amber);background:var(--amber-dim);padding:2px 8px;border-radius:4px;margin-left:8px}
 
 @media(max-width:600px){
@@ -186,6 +188,10 @@ tr.data-row:hover{background:var(--panel-alt)}
       <input type="text" id="loginUser" autocomplete="username">
       <label>Senha</label>
       <input type="password" id="loginPass" autocomplete="current-password">
+      <label style="display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer;font-size:.82rem;color:var(--text-muted)">
+        <input type="checkbox" id="rememberMe" style="width:auto;accent-color:var(--amber)">
+        Lembrar usuário e senha
+      </label>
       <div class="login-error" id="loginError"></div>
       <button class="btn-amber" onclick="doLogin()">Entrar</button>
       <p class="switch-link">Não tem conta? <a onclick="showRegister()">Criar conta</a></p>
@@ -294,14 +300,17 @@ tr.data-row:hover{background:var(--panel-alt)}
             <label>Senha</label>
             <input type="password" id="newPass" placeholder="Senha">
           </div>
+          <div class="field">
+            <label>Perfil</label>
+            <select id="newUserRole">
+              <option value="admin">Admin</option>
+              <option value="equipe">Equipe</option>
+            </select>
+          </div>
           <div style="display:flex;align-items:end">
             <button class="btn btn-amber btn-sm" onclick="addUser()">Criar</button>
           </div>
         </div>
-        <label style="display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer;font-size:.82rem;color:var(--text-muted)">
-          <input type="checkbox" id="newUserEquipe" style="width:auto;accent-color:var(--amber)">
-          É uma equipe (vínculo automático)
-        </label>
       </div>
     </div>
 
@@ -338,11 +347,56 @@ tr.data-row:hover{background:var(--panel-alt)}
 
 <div class="detail-modal" id="detailModal" onclick="if(event.target===this)closeDetailModal()">
   <div class="detail-panel">
-    <div class="detail-header">
+      <div class="detail-header">
       <h3 id="detailHeader">Detalhes do RDO</h3>
-      <button onclick="closeDetailModal()">✕</button>
+      <div style="display:flex;gap:8px">
+        <button id="editRecordBtn" onclick="openEditModal()" title="Editar registro" style="color:var(--teal);font-size:1.1rem;background:var(--teal-dim);padding:4px 10px;border-radius:6px">✎</button>
+        <button onclick="closeDetailModal()">✕</button>
+      </div>
     </div>
     <div class="detail-body" id="detailContent"></div>
+  </div>
+</div>
+
+<div class="detail-modal" id="editModal" onclick="if(event.target===this)closeEditModal()">
+  <div class="detail-panel" style="max-width:700px">
+    <div class="detail-header">
+      <h3>Editar RDO</h3>
+      <button onclick="closeEditModal()">✕</button>
+    </div>
+    <div class="detail-body" id="editBody">
+      <div class="detail-grid" style="gap:10px 16px">
+        <div class="field"><label>Data</label><input type="date" id="edit-data"></div>
+        <div class="field"><label>OC</label><input type="text" id="edit-oc"></div>
+        <div class="field"><label>Tipo</label><select id="edit-tipo"><option value="NORMAL">NORMAL</option><option value="URGENCIA">URGÊNCIA</option></select></div>
+        <div class="field"><label>Identificador</label><input type="text" id="edit-identificador"></div>
+        <div class="field"><label>Cidade</label><input type="text" id="edit-cidade"></div>
+        <div class="field"><label>Responsável</label><input type="text" id="edit-responsavel"></div>
+        <div class="field"><label>KM Inicial</label><input type="number" id="edit-km-ini" step="0.1"></div>
+        <div class="field"><label>KM Final</label><input type="number" id="edit-km-fin" step="0.1"></div>
+        <div class="field"><label>Condições Climáticas</label>
+          <select id="edit-clima"><option value="">—</option><option value="Ensolarado">Ensolarado</option><option value="Nublado">Nublado</option><option value="Chuvoso">Chuvoso</option><option value="Parcialmente Nublado">Parcialmente Nublado</option><option value="Neblina">Neblina</option></select>
+        </div>
+        <div class="field"><label>Equipe</label>
+          <select id="edit-equipe"></select>
+        </div>
+      </div>
+
+      <div class="detail-section" style="margin-top:16px">
+        <div class="detail-section-title">Atividades</div>
+        <div id="editAtivList"></div>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+          <select id="editActSelect" style="flex:1;min-width:200px"><option value="">Selecionar atividade...</option></select>
+          <input type="number" id="editActQtd" placeholder="Qtd" min="0" step="0.1" style="width:90px">
+          <button class="btn btn-teal btn-sm" onclick="addEditActivity()">+ Adicionar</button>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:18px;border-top:1px solid var(--line-soft);padding-top:16px">
+        <button class="btn btn-amber" onclick="saveEditRecord()" style="flex:1">Salvar Alterações</button>
+        <button class="btn btn-outline" onclick="closeEditModal()" style="flex:1">Cancelar</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -470,6 +524,7 @@ function showRegister(){
 async function doLogin(){
   const u=document.getElementById('loginUser').value.trim();
   const p=document.getElementById('loginPass').value;
+  const rem=document.getElementById('rememberMe').checked;
   const errEl=document.getElementById('loginError');
   if(!u||!p){errEl.textContent='Preencha todos os campos';return;}
   errEl.textContent='';
@@ -489,7 +544,8 @@ async function doLogin(){
       return;
     }
     localStorage.setItem('rdo_admin_user',u);
-    localStorage.setItem('rdo_admin_credentials',JSON.stringify({user:u,pass:p}));
+    if(rem){localStorage.setItem('rdo_admin_credentials',JSON.stringify({user:u,pass:p}));}
+    else{localStorage.removeItem('rdo_admin_credentials');}
     currentUser=u;
     enterApp();
   }catch(e){
@@ -527,11 +583,13 @@ async function doRegister(){
 
 function doLogout(){
   localStorage.removeItem('rdo_admin_user');
+  localStorage.removeItem('rdo_admin_credentials');
   currentUser=null;
   document.getElementById('appScreen').style.display='none';
   document.getElementById('loginScreen').style.display='';
   document.getElementById('loginUser').value='';
   document.getElementById('loginPass').value='';
+  document.getElementById('rememberMe').checked=false;
 }
 
 function enterApp(){
@@ -676,10 +734,10 @@ async function loadUsers(){
     if(!data){el.innerHTML='<div class="empty-msg">Nenhum usuário</div>';return;}
     el.innerHTML=Object.keys(data).map(u=>{
       const isEq=data[u].isEquipe;
-      const badge=isEq?'<span class="badge badge-teal" style="margin-left:8px;font-size:.7rem">Equipe</span>':'';
+      const badge=isEq?'<span class="badge badge-teal" style="margin-left:8px;font-size:.7rem">Equipe</span>':'<span class="badge badge-amber" style="margin-left:8px;font-size:.7rem">Admin</span>';
       return '<div class="list-item">'+
         '<span class="item-name">'+escapeHtml(u)+badge+'</span>'+
-        '<button class="btn btn-outline btn-sm" onclick="toggleEquipeUser(\''+escapeHtml(u)+'\','+!isEq+')" style="margin-right:6px">'+(isEq?'Desvincular':'Vincular')+'</button>'+
+        '<button class="btn btn-outline btn-sm" onclick="toggleUserRole(\''+escapeHtml(u)+'\','+!isEq+')" style="margin-right:6px">'+(isEq?'Tornar Admin':'Tornar Equipe')+'</button>'+
         '<button class="btn btn-danger btn-sm" onclick="deleteUser(\''+escapeHtml(u)+'\')">✕</button>'+
       '</div>';
     }).join('');
@@ -691,15 +749,15 @@ async function loadUsers(){
 async function addUser(){
   const u=document.getElementById('newUser').value.trim();
   const p=document.getElementById('newPass').value;
-  const isEq=document.getElementById('newUserEquipe').checked;
+  const role=document.getElementById('newUserRole').value;
   if(!u||!p){toast('Preencha todos os campos');return;}
   try{
     const existing=await sGet(USERS_PREFIX+u);
     if(existing){toast('Usuário já existe');return;}
-    await sSet(USERS_PREFIX+u,{senha:p,isEquipe:isEq});
+    await sSet(USERS_PREFIX+u,{senha:p,isEquipe:(role==='equipe'),isAdmin:(role==='admin')});
     document.getElementById('newUser').value='';
     document.getElementById('newPass').value='';
-    document.getElementById('newUserEquipe').checked=false;
+    document.getElementById('newUserRole').value='admin';
     loadUsers();
     toast('Usuário criado!');
   }catch(e){
@@ -707,13 +765,14 @@ async function addUser(){
   }
 }
 
-async function toggleEquipeUser(u, isEquipe){
+async function toggleUserRole(u, makeEquipe){
   const data=await sGet(USERS_PREFIX+u);
   if(!data)return;
-  data.isEquipe=isEquipe;
+  data.isEquipe=makeEquipe;
+  data.isAdmin=!makeEquipe;
   await sSet(USERS_PREFIX+u,data);
   loadUsers();
-  toast(isEquipe?'Vinculado como equipe':'Desvinculado');
+  toast(makeEquipe?'Alterado para Equipe':'Alterado para Admin');
 }
 
 async function deleteUser(u){
@@ -843,6 +902,7 @@ async function deleteRecord(id,isPending){
 }
 
 async function openDetail(id){
+  editingRecordId=id;
   let r=allRecords.find(x=>x._id===id);
   if(!r){
     try{r=await sGet(RECORD_KEY(id));}catch(e){}
@@ -961,6 +1021,125 @@ async function openDetail(id){
 
 function closeDetailModal(){document.getElementById('detailModal').classList.remove('open');}
 
+let editingRecordId=null;
+let editActivities=[];
+
+function openEditModal(){
+  if(!editingRecordId){toast('Abra um registro primeiro');return;}
+  const id=editingRecordId;
+
+  let r=allRecords.find(x=>x._id===id);
+  if(!r){toast('Registro não encontrado');return;}
+
+  document.getElementById('edit-data').value=r.data||'';
+  document.getElementById('edit-oc').value=r.oc||'';
+  document.getElementById('edit-tipo').value=r.tipoOrdem||'NORMAL';
+  document.getElementById('edit-identificador').value=r.identificador||'';
+  document.getElementById('edit-cidade').value=r.cidade||'';
+  document.getElementById('edit-responsavel').value=r.responsavel||'';
+  document.getElementById('edit-km-ini').value=r.kmInicial||'';
+  document.getElementById('edit-km-fin').value=r.kmFinal||'';
+  document.getElementById('edit-clima').value=r.condicoesClimaticas||'';
+
+  const eqSel=document.getElementById('edit-equipe');
+  eqSel.innerHTML=((config&&config.equipes)||[]).map(e=>
+    '<option'+(e.nome===r.equipe?' selected':'')+'>'+escapeHtml(e.nome)+'</option>'
+  ).join('');
+
+  editActivities=(r.atividades||[]).map(a=>({...a}));
+  renderEditActivities();
+
+  const actSel=document.getElementById('editActSelect');
+  actSel.innerHTML='<option value="">Selecionar atividade...</option>'+
+    ((config&&config.atividades)||[]).map(a=>
+      '<option value="'+escapeHtml(a.cod)+'">'+escapeHtml(a.cod)+' — '+escapeHtml(a.descricao)+' (R$ '+fmtMoney(a.valor)+')</option>'
+    ).join('');
+
+  document.getElementById('editModal').classList.add('open');
+}
+
+function closeEditModal(){document.getElementById('editModal').classList.remove('open');}
+
+function renderEditActivities(){
+  const el=document.getElementById('editAtivList');
+  if(editActivities.length===0){el.innerHTML='<div style="color:var(--text-muted);text-align:center;padding:12px;font-size:.85rem">Nenhuma atividade</div>';return;}
+  let grandTotal=0;
+  el.innerHTML=editActivities.map((a,i)=>{
+    const total=a.total||(a.qtd||0)*(a.valor||0);
+    grandTotal+=total;
+    return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line-soft)">'+
+      '<span style="font-family:var(--mono);color:var(--amber);min-width:40px;font-size:.85rem">'+escapeHtml(a.cod)+'</span>'+
+      '<span style="flex:1;font-size:.85rem">'+escapeHtml(a.descricao)+'</span>'+
+      '<input type="number" value="'+(a.qtd||0)+'" min="0" step="1" style="width:70px;font-family:var(--mono);text-align:center" onchange="updateEditActQtd('+i+',this.value)">'+
+      '<span style="font-family:var(--mono);font-size:.85rem;color:var(--text-muted)">x R$ '+fmtMoney(a.valor)+'</span>'+
+      '<span style="font-family:var(--mono);min-width:80px;text-align:right;font-size:.85rem;color:var(--teal)">R$ '+fmtMoney(total)+'</span>'+
+      '<button class="btn btn-danger btn-sm" onclick="removeEditActivity('+i+')" style="padding:3px 8px">✕</button>'+
+    '</div>';
+  }).join('');
+  el.innerHTML+='<div style="text-align:right;padding:10px 0;font-weight:700;font-size:1rem;border-top:2px solid var(--line)">Total: <span style="font-family:var(--mono);color:var(--teal)">R$ '+fmtMoney(grandTotal)+'</span></div>';
+}
+
+function updateEditActQtd(i,val){editActivities[i].qtd=parseFloat(val)||0;renderEditActivities();}
+
+function addEditActivity(){
+  const cod=document.getElementById('editActSelect').value;
+  if(!cod){toast('Selecione uma atividade');return;}
+  const qtd=parseFloat(document.getElementById('editActQtd').value)||1;
+  const all=(config&&config.atividades)||[];
+  const found=all.find(a=>a.cod===cod);
+  if(!found){toast('Atividade não encontrada');return;}
+  editActivities.push({cod:found.cod,descricao:found.descricao,valor:found.valor,qtd,total:found.valor*qtd});
+  document.getElementById('editActSelect').value='';
+  document.getElementById('editActQtd').value='';
+  renderEditActivities();
+}
+
+function removeEditActivity(i){editActivities.splice(i,1);renderEditActivities();}
+
+async function saveEditRecord(){
+  if(!editingRecordId){toast('Erro: nenhum registro selecionado');return;}
+  const id=editingRecordId;
+
+  const equipeNome=document.getElementById('edit-equipe').value;
+  const equipeObj=((config&&config.equipes)||[]).find(e=>e.nome===equipeNome)||{nome:equipeNome,pessoas:[]};
+  const kmIni=parseFloat(document.getElementById('edit-km-ini').value)||0;
+  const kmFin=parseFloat(document.getElementById('edit-km-fin').value)||0;
+
+  editActivities.forEach(a=>{a.total=(a.qtd||0)*(a.valor||0);});
+  const valorTotal=editActivities.reduce((s,a)=>s+a.total,0);
+
+  const updated={
+    data:document.getElementById('edit-data').value,
+    oc:document.getElementById('edit-oc').value.trim(),
+    tipoOrdem:document.getElementById('edit-tipo').value,
+    identificador:document.getElementById('edit-identificador').value.trim(),
+    cidade:document.getElementById('edit-cidade').value.trim(),
+    responsavel:document.getElementById('edit-responsavel').value.trim(),
+    kmInicial:kmIni,
+    kmFinal:kmFin,
+    kmTotal:kmFin-kmIni,
+    condicoesClimaticas:document.getElementById('edit-clima').value,
+    equipe:equipeNome,
+    setor:equipeObj.setor||'',
+    equipeDetalhes:{nome:equipeObj.nome,pessoas:equipeObj.pessoas||[]},
+    atividades:editActivities,
+    valorTotal
+  };
+
+  try{
+    let r=allRecords.find(x=>x._id===id);
+    const merged={...(r||{}),...updated,editadoPor:currentUser,editadoEm:new Date().toISOString()};
+    await sSet(RECORD_KEY(id),merged);
+    toast('Registro atualizado com sucesso!','success');
+    closeEditModal();
+    closeDetailModal();
+    loadRecords();
+  }catch(e){
+    console.error('saveEditRecord',e);
+    toast('Erro ao salvar: '+e.message);
+  }
+}
+
 function openImageViewer(index){
   if(viewerImages.length===0)return;
   viewerIndex=index;
@@ -993,6 +1172,12 @@ if('serviceWorker' in navigator){
 (async()=>{
   try{await ensureDefaultAdmin();}catch(e){console.error('init',e);}
   const saved=localStorage.getItem('rdo_admin_user');
+  const cached=JSON.parse(localStorage.getItem('rdo_admin_credentials')||'null');
+  if(saved&&cached&&cached.user===saved){
+    document.getElementById('loginUser').value=cached.user;
+    document.getElementById('loginPass').value=cached.pass;
+    document.getElementById('rememberMe').checked=true;
+  }
   if(saved){currentUser=saved;enterApp();}
   if(!firebaseReady){
     const sub=document.getElementById('loginSubtitle');
