@@ -190,30 +190,39 @@ input[type=file]::-webkit-file-upload-button{display:none}
   .tl-label{font-size:.5rem}
 }
 
-/* INSTALL BANNER */
-.install-banner{position:fixed;bottom:0;left:0;right:0;background:var(--panel);border-top:1px solid var(--amber);padding:16px 20px;display:flex;align-items:center;gap:14px;z-index:9998;box-shadow:0 -4px 20px rgba(0,0,0,.4);animation:slideUp .4s ease}
-.install-banner.hidden{display:none}
-.install-banner .ib-icon{width:48px;height:48px;flex-shrink:0}
-.install-banner .ib-text{flex:1}
-.install-banner .ib-title{font-family:var(--display);font-size:1rem;color:var(--amber);margin-bottom:2px}
-.install-banner .ib-sub{font-size:.8rem;color:var(--text-muted)}
-.install-banner .ib-btn{background:var(--amber);color:#111;border:none;border-radius:8px;padding:10px 20px;font-weight:700;font-size:.88rem;cursor:pointer;white-space:nowrap;transition:opacity .2s}
-.install-banner .ib-btn:hover{opacity:.85}
-.install-banner .ib-close{background:none;border:none;color:var(--text-faint);font-size:1.2rem;cursor:pointer;padding:4px}
-@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+/* INSTALL BANNER - Bottom Sheet Modal */
+.install-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;z-index:9998;padding:env(safe-area-inset-bottom,0) env(safe-area-inset-left,0) env(safe-area-inset-right,0) 0;backdrop-filter:blur(3px)}
+.install-overlay.hidden{display:none}
+.install-sheet{background:var(--panel);border:1px solid var(--line-soft);border-radius:16px 16px 0 0;padding:0;width:100%;max-width:420px;animation:sheetUp .35s ease;overflow:hidden}
+.install-sheet .is-header{display:flex;align-items:center;gap:14px;padding:20px 20px 12px}
+.install-sheet .is-icon{width:52px;height:52px;flex-shrink:0}
+.install-sheet .is-title{font-family:var(--display);font-size:1.1rem;color:var(--amber);line-height:1.2}
+.install-sheet .is-sub{font-size:.82rem;color:var(--text-muted);margin-top:2px}
+.install-sheet .is-body{padding:0 20px 16px;font-size:.85rem;color:var(--text-muted);line-height:1.5}
+.install-sheet .is-body span{color:var(--teal);font-weight:600}
+.install-sheet .is-actions{display:flex;gap:10px;padding:12px 20px 20px;border-top:1px solid var(--line-soft)}
+.install-sheet .is-actions button{flex:1;padding:14px;border-radius:10px;font-weight:700;font-size:.95rem;border:none;cursor:pointer;transition:opacity .2s}
+.install-sheet .btn-install{background:var(--amber);color:#111}
+.install-sheet .btn-install:active{opacity:.8}
+.install-sheet .btn-dismiss{background:var(--panel-alt);color:var(--text-muted);border:1px solid var(--line-soft) !important}
+.install-sheet .btn-dismiss:active{opacity:.7}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 
-/* UPDATE BANNER */
-.update-banner{position:fixed;top:0;left:0;right:0;background:var(--panel);border-bottom:2px solid var(--teal);padding:12px 20px;display:flex;align-items:center;gap:14px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.5);animation:slideDown .4s ease}
-.update-banner.hidden{display:none}
-.update-banner .ub-icon{font-size:1.4rem;flex-shrink:0;animation:pulse 1.5s infinite}
-.update-banner .ub-text{flex:1}
-.update-banner .ub-title{font-family:var(--display);font-size:.95rem;color:var(--teal);margin-bottom:1px}
-.update-banner .ub-sub{font-size:.78rem;color:var(--text-muted)}
-.update-banner .ub-btn{background:var(--teal);color:#111;border:none;border-radius:8px;padding:9px 18px;font-weight:700;font-size:.85rem;cursor:pointer;white-space:nowrap;transition:opacity .2s}
-.update-banner .ub-btn:hover{opacity:.85}
-.update-banner .ub-close{background:none;border:none;color:var(--text-faint);font-size:1.1rem;cursor:pointer;padding:4px}
-@keyframes slideDown{from{transform:translateY(-100%)}to{transform:translateY(0)}}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+/* UPDATE BANNER - Top Sheet Modal */
+.update-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-start;justify-content:center;z-index:9999;padding-top:env(safe-area-inset-top,0);backdrop-filter:blur(3px)}
+.update-overlay.hidden{display:none}
+.update-sheet{background:var(--panel);border:1px solid var(--line-soft);border-radius:0 0 16px 16px;padding:0;width:100%;max-width:420px;animation:sheetDown .35s ease;overflow:hidden}
+.update-sheet .us-header{display:flex;align-items:center;gap:14px;padding:18px 20px 10px}
+.update-sheet .us-icon{font-size:1.6rem;flex-shrink:0}
+.update-sheet .us-title{font-family:var(--display);font-size:1.05rem;color:var(--teal);line-height:1.2}
+.update-sheet .us-sub{font-size:.8rem;color:var(--text-muted);margin-top:2px}
+.update-sheet .us-actions{display:flex;gap:10px;padding:10px 20px 18px;border-top:1px solid var(--line-soft)}
+.update-sheet .us-actions button{flex:1;padding:13px;border-radius:10px;font-weight:700;font-size:.9rem;border:none;cursor:pointer;transition:opacity .2s}
+.update-sheet .btn-update{background:var(--teal);color:#111}
+.update-sheet .btn-update:active{opacity:.8}
+.update-sheet .btn-later{background:var(--panel-alt);color:var(--text-muted);border:1px solid var(--line-soft) !important}
+.update-sheet .btn-later:active{opacity:.7}
+@keyframes sheetDown{from{transform:translateY(-100%)}to{transform:translateY(0)}}
 
 /* SYNC PROGRESS */
 .sync-overlay{position:fixed;inset:0;background:rgba(18,23,31,.85);display:flex;align-items:center;justify-content:center;z-index:9999;backdrop-filter:blur(4px)}
@@ -471,30 +480,45 @@ input[type=file]::-webkit-file-upload-button{display:none}
 <!-- Toast -->
 <div id="toast"></div>
 
-<!-- Install Banner -->
-<div class="install-banner hidden" id="install-banner">
-  <svg class="ib-icon" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-    <rect width="512" height="512" rx="80" fill="#12171f"/>
-    <text x="256" y="220" text-anchor="middle" font-family="Arial Black,sans-serif" font-weight="900" font-size="160" fill="#f2a93b">G26</text>
-    <text x="256" y="370" text-anchor="middle" font-family="Arial,sans-serif" font-weight="700" font-size="80" fill="#45d0b5" letter-spacing="12">RDO</text>
-  </svg>
-  <div class="ib-text">
-    <div class="ib-title">Instalar RDO no seu dispositivo</div>
-    <div class="ib-sub">Acesso rápido, funciona offline</div>
+<!-- Install Bottom Sheet -->
+<div class="install-overlay hidden" id="install-banner" onclick="if(event.target===this)dismissInstall()">
+  <div class="install-sheet">
+    <div class="is-header">
+      <svg class="is-icon" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+        <rect width="512" height="512" rx="80" fill="#12171f"/>
+        <text x="256" y="220" text-anchor="middle" font-family="Arial Black,sans-serif" font-weight="900" font-size="160" fill="#f2a93b">G26</text>
+        <text x="256" y="370" text-anchor="middle" font-family="Arial,sans-serif" font-weight="700" font-size="80" fill="#45d0b5" letter-spacing="12">RDO</text>
+      </svg>
+      <div>
+        <div class="is-title">Instalar RDO</div>
+        <div class="is-sub">Acesso rápido, funciona offline</div>
+      </div>
+    </div>
+    <div class="is-body">
+      Instale no seu dispositivo para usar <span>offline</span>, receber <span>atualizações automáticas</span> e ter acesso rápido ao app.
+    </div>
+    <div class="is-actions">
+      <button class="btn-install" id="install-btn" onclick="installApp()">Instalar agora</button>
+      <button class="btn-dismiss" onclick="dismissInstall()">Agora não</button>
+    </div>
   </div>
-  <button class="ib-btn" id="install-btn" onclick="installApp()">Instalar</button>
-  <button class="ib-close" onclick="dismissInstall()">✕</button>
 </div>
 
-<!-- Update Banner -->
-<div class="update-banner hidden" id="update-banner">
-  <div class="ub-icon">🔄</div>
-  <div class="ib-text">
-    <div class="ub-title">Nova versão disponível</div>
-    <div class="ub-sub">Atualize para obter as melhorias</div>
+<!-- Update Top Sheet -->
+<div class="update-overlay hidden" id="update-banner" onclick="if(event.target===this)dismissUpdate()">
+  <div class="update-sheet">
+    <div class="us-header">
+      <div class="us-icon">🔄</div>
+      <div>
+        <div class="us-title">Nova versão disponível</div>
+        <div class="us-sub">Atualize para obter as melhorias</div>
+      </div>
+    </div>
+    <div class="us-actions">
+      <button class="btn-update" onclick="applyUpdate()">Atualizar agora</button>
+      <button class="btn-later" onclick="dismissUpdate()">Depois</button>
+    </div>
   </div>
-  <button class="ub-btn" onclick="applyUpdate()">Atualizar</button>
-  <button class="ub-close" onclick="dismissUpdate()">✕</button>
 </div>
 
 <!-- Sync Progress Overlay -->
@@ -710,13 +734,14 @@ function doLogin(){
   errEl.textContent='';
   document.getElementById('login-btn').disabled=true;
 
-  db.ref('rdo/users/'+user).once('value',snap=>{
+  fbTimeout(db.ref('rdo/users/'+user).once('value'),5000).then(snap=>{
     document.getElementById('login-btn').disabled=false;
     const val=snap.val();
     if(!val){
       if(checkOfflineLogin(user,pass)){
         loggedUser=user;
         cacheCredentials(user,pass);
+        localStorage.setItem('rdo_user',user);
         showApp();
         toast('Login offline','success');
         return;
@@ -736,6 +761,7 @@ function doLogin(){
     document.getElementById('login-btn').disabled=false;
     if(checkOfflineLogin(user,pass)){
       loggedUser=user;
+      localStorage.setItem('rdo_user',user);
       showApp();
       toast('Login offline','success');
       return;
@@ -786,7 +812,7 @@ function loadConfig(){
     appConfig=cached;
     populateForm();
   }
-  db.ref(CONFIG_KEY).once('value',snap=>{
+  fbTimeout(db.ref(CONFIG_KEY).once('value'),8000).then(snap=>{
     let c=snap.val();
     if(!c) c=JSON.parse(JSON.stringify(DEFAULT_CONFIG));
     if(!c.equipes) c.equipes=DEFAULT_CONFIG.equipes;
@@ -1260,15 +1286,29 @@ function closeDetailModal(){
 }
 
 // ==================== INIT ====================
+function fbTimeout(promise,ms){
+  return Promise.race([promise,new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),ms))]);
+}
+
 async function ensureDefaultAdmin(){
   try{
-    const snap=await db.ref('rdo/users/admin').once('value');
-    if(!snap.val()){await db.ref('rdo/users/admin').set({senha:'admin123'});}
+    await fbTimeout(db.ref('rdo/users/admin').once('value'),5000).then(snap=>{
+      if(!snap.val()) return fbTimeout(db.ref('rdo/users/admin').set({senha:'admin123'}),5000);
+    });
   }catch(e){console.error('ensureDefaultAdmin',e);}
 }
 
 document.getElementById('login-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 document.getElementById('login-user').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+
+function initApp(){
+  const u=localStorage.getItem('rdo_user');
+  if(u){
+    loggedUser=u;
+    showApp();
+    db.ref('rdo/users/'+u).once('value').catch(()=>{});
+  }
+}
 
 // ==================== PWA / INSTALL ====================
 let deferredPrompt=null;
@@ -1341,7 +1381,7 @@ function dismissUpdate(){
   document.getElementById('update-banner').classList.add('hidden');
 }
 
-(async()=>{await ensureDefaultAdmin();checkSession();})();
+(async()=>{ensureDefaultAdmin();initApp();})();
 </script>
 </body>
 </html>

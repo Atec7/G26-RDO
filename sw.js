@@ -1,14 +1,24 @@
-const CACHE_NAME='rdo-v2';
-const STATIC_ASSETS=[
-  'index.html',
-  'admin.html',
-  'manifest.json',
-  'icon.svg'
+const CACHE_NAME='rdo-v3';
+const FIREBASE_URLS=[
+  'https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js',
+  'https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js'
 ];
 
 self.addEventListener('install',e=>{
   e.waitUntil(
-    caches.open(CACHE_NAME).then(c=>c.addAll(STATIC_ASSETS)).then(()=>self.skipWaiting())
+    caches.open(CACHE_NAME).then(c=>{
+      return c.addAll([
+        'index.html',
+        'admin.html',
+        'manifest.json',
+        'icon.svg',
+        'sw.js'
+      ]).then(()=>{
+        return Promise.allSettled(
+          FIREBASE_URLS.map(url=>fetch(url).then(r=>{if(r.ok)return c.put(url,r);}))
+        );
+      });
+    }).then(()=>self.skipWaiting())
   );
 });
 
@@ -22,7 +32,6 @@ self.addEventListener('activate',e=>{
 
 self.addEventListener('fetch',e=>{
   const url=new URL(e.request.url);
-
   if(e.request.method!=='GET') return;
 
   if(url.hostname==='fonts.googleapis.com'||url.hostname==='fonts.gstatic.com'){
@@ -52,18 +61,23 @@ self.addEventListener('fetch',e=>{
     return;
   }
 
+  if(url.hostname==='firestore.googleapis.com'||url.hostname.includes('firebaseio.com')){
+    e.respondWith(fetch(e.request).catch(()=>new Response('{}',{status:503,headers:{'Content-Type':'application/json'}})));
+    return;
+  }
+
   e.respondWith(
-    fetch(e.request).then(resp=>{
-      const clone=resp.clone();
-      caches.open(CACHE_NAME).then(c=>c.put(e.request,clone));
-      return resp;
-    }).catch(()=>caches.match(e.request).then(r=>{
-      if(r) return r;
-      if(e.request.destination==='document'){
-        return caches.match('index.html');
-      }
-      return new Response('Offline',{status:503,headers:{'Content-Type':'text/plain'}});
-    }))
+    caches.match(e.request).then(cached=>{
+      const fetchPromise=fetch(e.request).then(resp=>{
+        if(resp.ok){
+          const clone=resp.clone();
+          caches.open(CACHE_NAME).then(c=>c.put(e.request,clone));
+        }
+        return resp;
+      }).catch(()=>cached);
+
+      return cached||fetchPromise;
+    })
   );
 });
 
@@ -81,6 +95,5 @@ self.addEventListener('sync',e=>{
 
 async function syncPendingRecords(){
   const clients=await self.clients.matchAll();
-  clients.forEach(c=>c.postMessage({type:'SYNC_START'}));
   clients.forEach(c=>c.postMessage({type:'TRIGGER_SYNC'}));
 }
