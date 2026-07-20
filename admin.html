@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RDO Admin</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#12171f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RDO Admin">
+<link rel="apple-touch-icon" href="icon.svg">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
@@ -342,7 +348,7 @@ tr.data-row:hover{background:var(--panel-alt)}
       <div class="card">
         <div class="tbl-wrap">
           <table>
-            <thead><tr><th>Data</th><th>Equipe</th><th>Tipo</th><th>Identificador</th><th>Cidade</th><th>Clima</th><th>Valor Total</th><th></th></tr></thead>
+            <thead><tr><th>Data</th><th>OC</th><th>Equipe</th><th>Tipo</th><th>Identificador</th><th>Cidade</th><th>Clima</th><th>Valor Total</th><th></th></tr></thead>
             <tbody id="recordsBody"></tbody>
           </table>
         </div>
@@ -655,14 +661,15 @@ function applyFilters(){
   if(search)filtered=filtered.filter(r=>(r.identificador||'').toLowerCase().includes(search)||(r.cidade||'').toLowerCase().includes(search));
 
   const body=document.getElementById('recordsBody');
-  if(filtered.length===0){body.innerHTML='<tr><td colspan="8" style="color:var(--text-muted);text-align:center;padding:20px">Nenhum registro encontrado</td></tr>';updateStats(filtered);return;}
+  if(filtered.length===0){body.innerHTML='<tr><td colspan="9" style="color:var(--text-muted);text-align:center;padding:20px">Nenhum registro encontrado</td></tr>';updateStats(filtered);return;}
   body.innerHTML=filtered.map(r=>{
     const climaBadge=getClimaBadge(r.condicoesClimaticas);
     const valor=r.valorTotal||0;
     const pendingTag=r._pending?'<span class="pending-badge">OFFLINE</span>':'';
     return `<tr class="data-row" onclick="openDetail('${escapeHtml(r._id)}')">
       <td>${formatDate(r.data)}</td>
-      <td>${escapeHtml(r.equipe||'')}${pendingTag}</td>
+      <td>${escapeHtml(r.oc||'')}${pendingTag}</td>
+      <td>${escapeHtml(r.equipe||'')}</td>
       <td><span class="badge badge-muted">${escapeHtml(r.tipoOrdem||'')}</span></td>
       <td>${escapeHtml(r.identificador||'')}</td>
       <td>${escapeHtml(r.cidade||'')}</td>
@@ -722,6 +729,7 @@ async function openDetail(id){
   html+=`<div class="detail-grid">`;
   html+=`<div><span class="lbl">Data:</span> <span class="val">${formatDate(r.data)}</span></div>`;
   html+=`<div><span class="lbl">Tipo:</span> <span class="val"><span class="badge badge-muted">${escapeHtml(r.tipoOrdem||'')}</span></span></div>`;
+  html+=`<div><span class="lbl">OC:</span> <span class="val">${escapeHtml(r.oc||'—')}</span></div>`;
   html+=`<div><span class="lbl">Identificador:</span> <span class="val">${escapeHtml(r.identificador||'—')}</span></div>`;
   html+=`<div><span class="lbl">Cidade:</span> <span class="val">${escapeHtml(r.cidade||'—')}</span></div>`;
   html+=`<div><span class="lbl">Responsável:</span> <span class="val">${escapeHtml(r.responsavel||'—')}</span></div>`;
@@ -869,6 +877,10 @@ document.addEventListener('keydown',e=>{
   if(e.key==='ArrowLeft')navigateImg(-1);
   if(e.key==='ArrowRight')navigateImg(1);
 });
+
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(e=>console.error('SW fail',e));
+}
 
 (async()=>{
   await ensureDefaultAdmin();

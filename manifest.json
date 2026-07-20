@@ -1,0 +1,19 @@
+{
+  "name": "RDO de Campo",
+  "short_name": "RDO",
+  "description": "Relatório Diário de Obra - Aplicativo de Campo",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#12171f",
+  "theme_color": "#12171f",
+  "orientation": "portrait-primary",
+  "categories": ["business", "utilities"],
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

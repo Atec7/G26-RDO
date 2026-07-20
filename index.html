@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>RDO de Campo</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#12171f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RDO">
+<link rel="apple-touch-icon" href="icon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -183,6 +189,28 @@ input[type=file]::-webkit-file-upload-button{display:none}
   .timeline{overflow-x:auto;padding-bottom:8px}
   .tl-label{font-size:.5rem}
 }
+
+/* INSTALL BANNER */
+.install-banner{position:fixed;bottom:0;left:0;right:0;background:var(--panel);border-top:1px solid var(--amber);padding:16px 20px;display:flex;align-items:center;gap:14px;z-index:9998;box-shadow:0 -4px 20px rgba(0,0,0,.4);animation:slideUp .4s ease}
+.install-banner.hidden{display:none}
+.install-banner .ib-icon{width:48px;height:48px;flex-shrink:0}
+.install-banner .ib-text{flex:1}
+.install-banner .ib-title{font-family:var(--display);font-size:1rem;color:var(--amber);margin-bottom:2px}
+.install-banner .ib-sub{font-size:.8rem;color:var(--text-muted)}
+.install-banner .ib-btn{background:var(--amber);color:#111;border:none;border-radius:8px;padding:10px 20px;font-weight:700;font-size:.88rem;cursor:pointer;white-space:nowrap;transition:opacity .2s}
+.install-banner .ib-btn:hover{opacity:.85}
+.install-banner .ib-close{background:none;border:none;color:var(--text-faint);font-size:1.2rem;cursor:pointer;padding:4px}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+
+/* SYNC PROGRESS */
+.sync-overlay{position:fixed;inset:0;background:rgba(18,23,31,.85);display:flex;align-items:center;justify-content:center;z-index:9999;backdrop-filter:blur(4px)}
+.sync-overlay.hidden{display:none}
+.sync-box{background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--radius);padding:32px;width:340px;max-width:90vw;text-align:center}
+.sync-box h3{font-family:var(--display);color:var(--amber);font-size:1.1rem;margin-bottom:16px}
+.sync-progress{width:100%;height:8px;background:var(--panel-alt);border-radius:4px;overflow:hidden;margin-bottom:12px}
+.sync-progress .bar{height:100%;background:linear-gradient(90deg,var(--amber),var(--teal));border-radius:4px;transition:width .3s ease;width:0%}
+.sync-status{font-size:.85rem;color:var(--text-muted);margin-bottom:6px}
+.sync-count{font-family:var(--mono);font-size:.8rem;color:var(--text-faint)}
 </style>
 </head>
 <body>
@@ -250,9 +278,15 @@ input[type=file]::-webkit-file-upload-button{display:none}
         </div>
         <div class="form-row">
           <div class="form-group">
+            <label>OC (Ordem de Comando) *</label>
+            <input type="text" id="f-oc" placeholder="Nº da OC" required>
+          </div>
+          <div class="form-group">
             <label id="f-id-label">Identificador</label>
             <input type="text" id="f-identificador" placeholder="Nº da ocorrência">
           </div>
+        </div>
+        <div class="form-row">
           <div class="form-group">
             <label>Cidade</label>
             <input type="text" id="f-cidade" placeholder="Cidade">
@@ -424,6 +458,31 @@ input[type=file]::-webkit-file-upload-button{display:none}
 <!-- Toast -->
 <div id="toast"></div>
 
+<!-- Install Banner -->
+<div class="install-banner hidden" id="install-banner">
+  <svg class="ib-icon" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+    <rect width="512" height="512" rx="80" fill="#12171f"/>
+    <text x="256" y="220" text-anchor="middle" font-family="Arial Black,sans-serif" font-weight="900" font-size="160" fill="#f2a93b">G26</text>
+    <text x="256" y="370" text-anchor="middle" font-family="Arial,sans-serif" font-weight="700" font-size="80" fill="#45d0b5" letter-spacing="12">RDO</text>
+  </svg>
+  <div class="ib-text">
+    <div class="ib-title">Instalar RDO no seu dispositivo</div>
+    <div class="ib-sub">Acesso rápido, funciona offline</div>
+  </div>
+  <button class="ib-btn" id="install-btn" onclick="installApp()">Instalar</button>
+  <button class="ib-close" onclick="dismissInstall()">✕</button>
+</div>
+
+<!-- Sync Progress Overlay -->
+<div class="sync-overlay hidden" id="sync-overlay">
+  <div class="sync-box">
+    <h3>Sincronizando Dados</h3>
+    <div class="sync-progress"><div class="bar" id="sync-bar"></div></div>
+    <div class="sync-status" id="sync-status">Preparando...</div>
+    <div class="sync-count" id="sync-count"></div>
+  </div>
+</div>
+
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyDFQCMsX04fwh7MVyEpvXnXD0U4TD5Or5w",
@@ -513,27 +572,63 @@ function saveLocally(record){
   localStorage.setItem('rdo_pending',JSON.stringify(pending));
 }
 
+let syncInProgress=false;
+function showSyncOverlay(total,current,status){
+  const overlay=document.getElementById('sync-overlay');
+  const bar=document.getElementById('sync-bar');
+  const statusEl=document.getElementById('sync-status');
+  const countEl=document.getElementById('sync-count');
+  overlay.classList.remove('hidden');
+  bar.style.width=Math.round(((current)/total)*100)+'%';
+  statusEl.textContent=status;
+  countEl.textContent=current+' de '+total;
+}
+function hideSyncOverlay(){
+  document.getElementById('sync-overlay').classList.add('hidden');
+  document.getElementById('sync-bar').style.width='0%';
+}
+
 async function syncPending(){
+  if(syncInProgress) return;
   const pending=JSON.parse(localStorage.getItem('rdo_pending')||'[]');
   if(pending.length===0) return;
+  syncInProgress=true;
+  showSyncOverlay(pending.length,0,'Sincronizando registros...');
   const synced=[];
-  for(const rec of pending){
+  for(let i=0;i<pending.length;i++){
+    const rec=pending[i];
     try{
+      showSyncOverlay(pending.length,i,'Enviando registro '+(i+1)+'...');
       await db.ref(RECORD_KEY(rec.id)).set(rec);
       synced.push(rec.id);
+      showSyncOverlay(pending.length,i+1,'Enviado: registro '+(i+1));
     }catch(e){break;}
   }
   if(synced.length>0){
     const remaining=pending.filter(r=>!synced.includes(r.id));
     localStorage.setItem('rdo_pending',JSON.stringify(remaining));
-    if(remaining.length===0) toast('Dados sincronizados!','success');
-    else toast('Sincronizados '+synced.length+' de '+(synced.length+remaining.length),'success');
+    if(remaining.length===0){
+      showSyncOverlay(pending.length,pending.length,'Sincronização completa!');
+      setTimeout(hideSyncOverlay,1200);
+      toast('Todos os dados sincronizados!','success');
+    }else{
+      showSyncOverlay(pending.length,synced.length,'Parcial: '+synced.length+' de '+(synced.length+remaining.length));
+      setTimeout(hideSyncOverlay,2000);
+      toast('Sincronizados '+synced.length+' de '+(synced.length+remaining.length),'success');
+    }
+  }else{
+    hideSyncOverlay();
+    toast('Falha na sincronização','error');
   }
+  syncInProgress=false;
 }
 
 window.addEventListener('online',()=>{
   updateOfflineIndicator();
   syncPending();
+  if('serviceWorker' in navigator&&'SyncManager' in window){
+    navigator.serviceWorker.ready.then(reg=>reg.sync.register('sync-pending'));
+  }
 });
 window.addEventListener('offline',()=>{updateOfflineIndicator();});
 
@@ -926,12 +1021,14 @@ async function saveRDO(){
   const equipeIdx=parseInt(document.getElementById('f-equipe').value);
   const responsavel=document.getElementById('f-responsavel').value.trim();
   const tipo=document.getElementById('f-tipo').value;
+  const oc=document.getElementById('f-oc').value.trim();
   const identificador=document.getElementById('f-identificador').value.trim();
   const cidade=document.getElementById('f-cidade').value.trim();
   const data=document.getElementById('f-data').value;
   const kmIni=document.getElementById('f-km-ini').value;
   const kmFin=document.getElementById('f-km-fin').value;
 
+  if(!oc){toast('Preencha a OC (Ordem de Comando)','error');return;}
   if(!responsavel){toast('Preencha o responsável','error');return;}
   if(!cidade){toast('Preencha a cidade','error');return;}
   if(!data){toast('Selecione a data','error');return;}
@@ -972,6 +1069,7 @@ async function saveRDO(){
       equipeDetalhes:{nome:equipeObj.nome,pessoas:equipeObj.pessoas||[]},
       responsavel,
       tipoOrdem:tipo,
+      oc,
       identificador,
       cidade,
       data,
@@ -1012,6 +1110,7 @@ async function saveRDO(){
 
 function resetForm(){
   document.getElementById('f-responsavel').value='';
+  document.getElementById('f-oc').value='';
   document.getElementById('f-identificador').value='';
   document.getElementById('f-km-ini').value='';
   document.getElementById('f-km-fin').value='';
@@ -1059,6 +1158,7 @@ function showDetailModal(r){
 
   c.innerHTML+='<div class="detail-section-title">Identificação</div>';
   addField('Data',formatDate(r.data));
+  addField('OC',r.oc);
   addField('Tipo de Ordem',r.tipoOrdem);
   addField('Identificador',r.identificador);
   addField('Cidade',r.cidade);
@@ -1145,6 +1245,49 @@ async function ensureDefaultAdmin(){
 
 document.getElementById('login-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 document.getElementById('login-user').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+
+// ==================== PWA / INSTALL ====================
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();
+  deferredPrompt=e;
+  if(!localStorage.getItem('rdo_install_dismissed')){
+    document.getElementById('install-banner').classList.remove('hidden');
+  }
+});
+
+function installApp(){
+  if(!deferredPrompt) return;
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(choice=>{
+    if(choice.outcome==='accepted'){
+      document.getElementById('install-banner').classList.add('hidden');
+      toast('App instalado!','success');
+    }
+    deferredPrompt=null;
+  });
+}
+
+function dismissInstall(){
+  document.getElementById('install-banner').classList.add('hidden');
+  localStorage.setItem('rdo_install_dismissed','1');
+}
+
+window.addEventListener('appinstalled',()=>{
+  document.getElementById('install-banner').classList.add('hidden');
+  deferredPrompt=null;
+  toast('App instalado com sucesso!','success');
+});
+
+// ==================== SERVICE WORKER ====================
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').then(reg=>{
+    reg.addEventListener('updatefound',()=>{});
+    navigator.serviceWorker.addEventListener('message',e=>{
+      if(e.data&&e.data.type==='TRIGGER_SYNC') syncPending();
+    });
+  }).catch(e=>console.error('SW registration failed',e));
+}
 
 (async()=>{await ensureDefaultAdmin();checkSession();})();
 </script>
