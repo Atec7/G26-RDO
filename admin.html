@@ -221,9 +221,16 @@ tr.data-row:hover{background:var(--panel-alt)}
         <div id="equipesList" class="equipes-grid"></div>
         <hr style="border:none;border-top:1px solid var(--line-soft);margin:12px 0">
         <div class="form-row">
-          <div class="field">
+          <div class="field" style="flex:2">
             <label>Nome da equipe</label>
             <input type="text" id="eqName" placeholder="Ex: RVRU106m">
+          </div>
+          <div class="field" style="max-width:180px">
+            <label>Setor</label>
+            <select id="eqSetor">
+              <option value="MANUTENÇÃO">MANUTENÇÃO</option>
+              <option value="OBRA">OBRA</option>
+            </select>
           </div>
         </div>
         <div style="margin:10px 0 6px;font-size:.78rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">Pessoas</div>
@@ -291,6 +298,10 @@ tr.data-row:hover{background:var(--panel-alt)}
             <button class="btn btn-amber btn-sm" onclick="addUser()">Criar</button>
           </div>
         </div>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer;font-size:.82rem;color:var(--text-muted)">
+          <input type="checkbox" id="newUserEquipe" style="width:auto;accent-color:var(--amber)">
+          É uma equipe (vínculo automático)
+        </label>
       </div>
     </div>
 
@@ -305,6 +316,9 @@ tr.data-row:hover{background:var(--panel-alt)}
       <div class="filter-bar">
         <div class="field"><label>De</label><input type="date" id="filterDe"></div>
         <div class="field"><label>Até</label><input type="date" id="filterAte"></div>
+        <div class="field"><label>Setor</label><select id="filterSetor"><option value="">Todos</option>
+          <option>MANUTENÇÃO</option><option>OBRA</option>
+        </select></div>
         <div class="field"><label>Equipe</label><select id="filterEquipe"><option value="">Todas</option></select></div>
         <div class="field"><label>Tipo</label><select id="filterTipo"><option value="">Todos</option>
           <option>Ocorrência</option><option>Projeto</option><option>OSE</option><option>Poda</option><option>NDS</option>
@@ -567,6 +581,7 @@ function renderEquipes(){
     return '<div class="equipe-card">'+
       '<button class="eq-del" onclick="deleteEquipe('+i+')">✕</button>'+
       '<div class="eq-name">'+escapeHtml(eq.nome)+'</div>'+
+      (eq.setor?'<div style="margin-bottom:6px"><span class="badge '+(eq.setor==='OBRA'?'badge-teal':'badge-amber')+'">'+escapeHtml(eq.setor)+'</span></div>':'')+
       '<div class="eq-people">'+(people||'<span style="color:var(--text-faint);font-size:.8rem">Sem pessoas</span>')+'</div>'+
     '</div>';
   }).join('');
@@ -590,9 +605,10 @@ function removeTempPerson(i){tempPeople.splice(i,1);renderPeopleChips();}
 
 async function saveEquipe(){
   const name=document.getElementById('eqName').value.trim();
+  const setor=document.getElementById('eqSetor').value;
   if(!name){toast('Digite o nome da equipe');return;}
   if(!config.equipes)config.equipes=[];
-  config.equipes.push({nome:name,pessoas:[...tempPeople]});
+  config.equipes.push({nome:name,setor:setor,pessoas:[...tempPeople]});
   await sSet(CONFIG_KEY,config);
   cacheConfig(config);
   document.getElementById('eqName').value='';
@@ -656,12 +672,15 @@ async function loadUsers(){
   try{
     const data=await sGet(USERS_PREFIX);
     if(!data){el.innerHTML='<div class="empty-msg">Nenhum usuário</div>';return;}
-    el.innerHTML=Object.keys(data).map(u=>
-      '<div class="list-item">'+
-        '<span class="item-name">'+escapeHtml(u)+'</span>'+
+    el.innerHTML=Object.keys(data).map(u=>{
+      const isEq=data[u].isEquipe;
+      const badge=isEq?'<span class="badge badge-teal" style="margin-left:8px;font-size:.7rem">Equipe</span>':'';
+      return '<div class="list-item">'+
+        '<span class="item-name">'+escapeHtml(u)+badge+'</span>'+
+        '<button class="btn btn-outline btn-sm" onclick="toggleEquipeUser(\''+escapeHtml(u)+'\','+!isEq+')" style="margin-right:6px">'+(isEq?'Desvincular':'Vincular')+'</button>'+
         '<button class="btn btn-danger btn-sm" onclick="deleteUser(\''+escapeHtml(u)+'\')">✕</button>'+
-      '</div>'
-    ).join('');
+      '</div>';
+    }).join('');
   }catch(e){
     el.innerHTML='<div class="empty-msg">Erro ao carregar</div>';
   }
@@ -670,18 +689,29 @@ async function loadUsers(){
 async function addUser(){
   const u=document.getElementById('newUser').value.trim();
   const p=document.getElementById('newPass').value;
+  const isEq=document.getElementById('newUserEquipe').checked;
   if(!u||!p){toast('Preencha todos os campos');return;}
   try{
     const existing=await sGet(USERS_PREFIX+u);
     if(existing){toast('Usuário já existe');return;}
-    await sSet(USERS_PREFIX+u,{senha:p});
+    await sSet(USERS_PREFIX+u,{senha:p,isEquipe:isEq});
     document.getElementById('newUser').value='';
     document.getElementById('newPass').value='';
+    document.getElementById('newUserEquipe').checked=false;
     loadUsers();
     toast('Usuário criado!');
   }catch(e){
     toast('Erro ao criar usuário');
   }
+}
+
+async function toggleEquipeUser(u, isEquipe){
+  const data=await sGet(USERS_PREFIX+u);
+  if(!data)return;
+  data.isEquipe=isEquipe;
+  await sSet(USERS_PREFIX+u,data);
+  loadUsers();
+  toast(isEquipe?'Vinculado como equipe':'Desvinculado');
 }
 
 async function deleteUser(u){
@@ -696,7 +726,7 @@ function initFilters(){
   const first=new Date(now.getFullYear(),now.getMonth(),1);
   document.getElementById('filterDe').value=first.toISOString().slice(0,10);
   document.getElementById('filterAte').value=now.toISOString().slice(0,10);
-  ['filterDe','filterAte','filterEquipe','filterTipo','filterSearch'].forEach(id=>{
+  ['filterDe','filterAte','filterSetor','filterEquipe','filterTipo','filterSearch'].forEach(id=>{
     document.getElementById(id).addEventListener('input',applyFilters);
   });
 }
@@ -740,6 +770,7 @@ function populateEquipeFilter(){
 function applyFilters(){
   const de=document.getElementById('filterDe').value;
   const ate=document.getElementById('filterAte').value;
+  const setor=document.getElementById('filterSetor').value;
   const equipe=document.getElementById('filterEquipe').value;
   const tipo=document.getElementById('filterTipo').value;
   const search=document.getElementById('filterSearch').value.toLowerCase();
@@ -747,6 +778,14 @@ function applyFilters(){
   let filtered=allRecords;
   if(de)filtered=filtered.filter(r=>r.data>=de);
   if(ate)filtered=filtered.filter(r=>r.data<=ate);
+  if(setor){
+    filtered=filtered.filter(r=>{
+      if(r.setor) return r.setor===setor;
+      const eq=(config&&config.equipes)||[];
+      const found=eq.find(e=>e.nome===r.equipe);
+      return found&&found.setor===setor;
+    });
+  }
   if(equipe)filtered=filtered.filter(r=>r.equipe===equipe);
   if(tipo)filtered=filtered.filter(r=>r.tipoOrdem===tipo);
   if(search)filtered=filtered.filter(r=>

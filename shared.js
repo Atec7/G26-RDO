@@ -81,16 +81,8 @@ const RECORDS_PREFIX = 'rdo/records/';
 const RECORD_KEY = id => RECORDS_PREFIX + id;
 
 const DEFAULT_CONFIG = {
-  equipes: [
-    { nome: 'RVRU106m', pessoas: [{ nome: 'Supervisor', cargo: 'Supervisor' }, { nome: 'Motorista', cargo: 'Motorista' }] },
-    { nome: 'RVRO104m', pessoas: [{ nome: 'Supervisor', cargo: 'Supervisor' }, { nome: 'Motorista', cargo: 'Motorista' }] },
-    { nome: 'RVRO102m', pessoas: [{ nome: 'Supervisor', cargo: 'Supervisor' }, { nome: 'Motorista', cargo: 'Motorista' }] }
-  ],
-  atividades: [
-    { cod: '0101', descricao: 'Poda de árvore em rede de baixa tensão', valor: 85.00 },
-    { cod: '0202', descricao: 'Substituição de isolador', valor: 42.50 },
-    { cod: '0303', descricao: 'Reaperto de conexão', valor: 18.00 }
-  ]
+  equipes: [],
+  atividades: []
 };
 
 const TL_STAGES = [
