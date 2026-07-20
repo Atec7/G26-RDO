@@ -753,10 +753,11 @@ async function syncPending(){
           }
         }
       }
-      await dataSet(RECORD_KEY(rec.id), rec);
+      const ok=await dataSet(RECORD_KEY(rec.id), rec);
+      if(!ok) throw new Error('Falha ao enviar para Firebase');
       synced.push(rec.id);
       showSyncOverlay(pending.length,i+1,'Enviado: registro '+(i+1));
-    }catch(e){break;}
+    }catch(e){console.error('sync record error',e);break;}
   }
   if(synced.length>0){
     const remaining=pending.filter(r=>!synced.includes(r.id));
