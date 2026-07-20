@@ -176,6 +176,19 @@ tr.data-row:hover{background:var(--panel-alt)}
   .detail-grid{grid-template-columns:1fr}
   .detail-timeline{flex-direction:column}
 }
+
+/* UPDATE BANNER */
+.update-banner{position:fixed;top:0;left:0;right:0;background:var(--panel);border-bottom:2px solid var(--teal);padding:12px 20px;display:flex;align-items:center;gap:14px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.5);animation:slideDown .4s ease}
+.update-banner.hidden{display:none}
+.update-banner .ub-icon{font-size:1.4rem;flex-shrink:0;animation:pulse 1.5s infinite}
+.update-banner .ub-text{flex:1}
+.update-banner .ub-title{font-family:var(--display);font-size:.95rem;color:var(--teal);margin-bottom:1px}
+.update-banner .ub-sub{font-size:.78rem;color:var(--text-muted)}
+.update-banner .ub-btn{background:var(--teal);color:#111;border:none;border-radius:8px;padding:9px 18px;font-weight:700;font-size:.85rem;cursor:pointer;white-space:nowrap;transition:opacity .2s}
+.update-banner .ub-btn:hover{opacity:.85}
+.update-banner .ub-close{background:none;border:none;color:var(--text-faint);font-size:1.1rem;cursor:pointer;padding:4px}
+@keyframes slideDown{from{transform:translateY(-100%)}to{transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
 </style>
 </head>
 <body>
@@ -377,6 +390,17 @@ tr.data-row:hover{background:var(--panel-alt)}
 
 <!-- Toast -->
 <div id="toast"></div>
+
+<!-- Update Banner -->
+<div class="update-banner hidden" id="update-banner">
+  <div class="ub-icon">🔄</div>
+  <div class="ub-text">
+    <div class="ub-title">Nova versão disponível</div>
+    <div class="ub-sub">Atualize para obter as melhorias</div>
+  </div>
+  <button class="ub-btn" onclick="applyUpdate()">Atualizar</button>
+  <button class="ub-close" onclick="document.getElementById('update-banner').classList.add('hidden')">✕</button>
+</div>
 
 <script>
 const firebaseConfig={apiKey:"AIzaSyDFQCMsX04fwh7MVyEpvXnXD0U4TD5Or5w",authDomain:"ja-barbearia.firebaseapp.com",databaseURL:"https://ja-barbearia-default-rtdb.firebaseio.com",projectId:"ja-barbearia",storageBucket:"ja-barbearia.firebasestorage.app",messagingSenderId:"213237027963",appId:"1:213237027963:web:7d585b158ee06d3ab7fede"};
@@ -878,8 +902,34 @@ document.addEventListener('keydown',e=>{
   if(e.key==='ArrowRight')navigateImg(1);
 });
 
+let swRegistration=null;
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('sw.js').catch(e=>console.error('SW fail',e));
+  navigator.serviceWorker.register('sw.js').then(reg=>{
+    swRegistration=reg;
+    reg.addEventListener('updatefound',()=>{
+      const newSW=reg.installing;
+      if(!newSW) return;
+      newSW.addEventListener('statechange',()=>{
+        if(newSW.state==='installed'&&navigator.serviceWorker.controller){
+          document.getElementById('update-banner').classList.remove('hidden');
+        }
+      });
+    });
+  }).catch(e=>console.error('SW fail',e));
+
+  let refreshing=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    if(refreshing) return;
+    refreshing=true;
+    window.location.reload();
+  });
+}
+
+function applyUpdate(){
+  if(swRegistration&&swRegistration.waiting){
+    swRegistration.waiting.postMessage({type:'SKIP_WAITING'});
+  }
+  document.getElementById('update-banner').classList.add('hidden');
 }
 
 (async()=>{

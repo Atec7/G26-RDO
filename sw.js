@@ -1,4 +1,4 @@
-const CACHE_NAME='rdo-v1';
+const CACHE_NAME='rdo-v2';
 const STATIC_ASSETS=[
   'index.html',
   'admin.html',
@@ -65,6 +65,12 @@ self.addEventListener('fetch',e=>{
       return new Response('Offline',{status:503,headers:{'Content-Type':'text/plain'}});
     }))
   );
+});
+
+self.addEventListener('message',e=>{
+  if(e.data&&e.data.type==='SKIP_WAITING'){
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('sync',e=>{
