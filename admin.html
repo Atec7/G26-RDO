@@ -391,7 +391,9 @@ async function sGet(key){
         db.ref(key).once('value'),
         new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),8000))
       ]);
-      return snap.val();
+      const val=snap.val();
+      if(val!==null) localSet(key,val);
+      return val;
     }catch(e){return localGet(key);}
   }
   return localGet(key);

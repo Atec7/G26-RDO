@@ -605,7 +605,9 @@ async function dataGet(key) {
   if (firebaseReady && db) {
     try {
       const snap = await fbTimeout(db.ref(key).once('value'), 5000);
-      return snap.val();
+      const val = snap.val();
+      if (val !== null) localSet(key, val);
+      return val;
     } catch(e) { return localGet(key); }
   }
   return localGet(key);
@@ -797,6 +799,15 @@ async function syncPending(){
 
 window.addEventListener('online',()=>{
   updateOfflineIndicator();
+  dataGet(CONFIG_KEY).then(c=>{
+    if(c){
+      if(!c.equipes) c.equipes=[];
+      if(!c.atividades) c.atividades=[];
+      appConfig=c;
+      cacheConfig(c);
+      populateForm();
+    }
+  }).catch(()=>{});
   syncPending();
   if('serviceWorker' in navigator&&'SyncManager' in window){
     navigator.serviceWorker.ready.then(reg=>reg.sync.register('sync-pending'));
