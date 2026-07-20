@@ -730,8 +730,10 @@ async function deleteAtividade(i){
 async function loadUsers(){
   const el=document.getElementById('usersList');
   try{
-    const data=await sGet(USERS_PREFIX);
-    if(!data){el.innerHTML='<div class="empty-msg">Nenhum usuário</div>';return;}
+    const remote=await sGet(USERS_PREFIX);
+    const local=localGet(USERS_PREFIX);
+    const data={...(local||{}),...(remote||{})};
+    if(Object.keys(data).length===0){el.innerHTML='<div class="empty-msg">Nenhum usuário</div>';return;}
     el.innerHTML=Object.keys(data).map(u=>{
       const isEq=data[u].isEquipe;
       const badge=isEq?'<span class="badge badge-teal" style="margin-left:8px;font-size:.7rem">Equipe</span>':'<span class="badge badge-amber" style="margin-left:8px;font-size:.7rem">Admin</span>';
