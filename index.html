@@ -233,6 +233,14 @@ input[type=file]::-webkit-file-upload-button{display:none}
 .sync-progress .bar{height:100%;background:linear-gradient(90deg,var(--amber),var(--teal));border-radius:4px;transition:width .3s ease;width:0%}
 .sync-status{font-size:.85rem;color:var(--text-muted);margin-bottom:6px}
 .sync-count{font-family:var(--mono);font-size:.8rem;color:var(--text-faint)}
+
+.pending-record-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line-soft);font-size:.85rem}
+.pending-record-item:last-child{border-bottom:none}
+.pending-record-item .pr-info{flex:1}
+.pending-record-item .pr-date{font-family:var(--mono);font-size:.75rem;color:var(--text-muted)}
+.pending-record-item .pr-title{color:var(--text)}
+.pending-record-item .pr-sub{font-size:.75rem;color:var(--text-faint)}
+.pending-record-item .pr-status{color:var(--amber);font-size:.7rem;background:var(--amber-dim);padding:2px 8px;border-radius:4px;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -453,8 +461,12 @@ input[type=file]::-webkit-file-upload-button{display:none}
 
   <!-- Save Bar -->
   <div class="save-bar">
-    <button class="btn-save" id="btn-save" onclick="saveRDO()">
+    <button class="btn-save" id="btn-save" onclick="saveRDO()" style="flex:0">
       <span class="spinner"></span>Salvar RDO
+    </button>
+    <button class="btn-ghost" id="btn-pending" onclick="openPendingModal()" style="display:none;margin-left:10px;white-space:nowrap">
+      <span id="pending-badge" style="background:var(--amber);color:#111;border-radius:50%;padding:1px 6px;font-weight:700;margin-right:4px">0</span>
+      Pendentes
     </button>
   </div>
 </div>
@@ -521,7 +533,7 @@ input[type=file]::-webkit-file-upload-button{display:none}
   </div>
 </div>
 
-<!-- Sync Progress Overlay -->
+  <!-- Sync Progress Overlay -->
 <div class="sync-overlay hidden" id="sync-overlay">
   <div class="sync-box">
     <h3>Sincronizando Dados</h3>
@@ -531,18 +543,96 @@ input[type=file]::-webkit-file-upload-button{display:none}
   </div>
 </div>
 
+<!-- Offline Pending Records Modal -->
+<div class="modal-overlay" id="pending-modal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closePendingModal()">✕</button>
+    <h2>Registros Pendentes (Offline)</h2>
+    <div id="pending-list" style="max-height:50vh;overflow-y:auto">
+      <div style="color:var(--text-muted);text-align:center;padding:20px">Nenhum registro pendente</div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:16px;border-top:1px solid var(--line-soft);padding-top:16px">
+      <button class="btn-primary" onclick="syncPending();closePendingModal()" style="flex:1">Sincronizar agora</button>
+      <button class="btn-ghost" onclick="closePendingModal()" style="flex:1;text-align:center">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const firebaseConfig = {
-  apiKey: "AIzaSyDFQCMsX04fwh7MVyEpvXnXD0U4TD5Or5w",
-  authDomain: "ja-barbearia.firebaseapp.com",
-  databaseURL: "https://ja-barbearia-default-rtdb.firebaseio.com",
-  projectId: "ja-barbearia",
-  storageBucket: "ja-barbearia.firebasestorage.app",
-  messagingSenderId: "213237027963",
-  appId: "1:213237027963:web:7d585b158ee06d3ab7fede"
+  apiKey: "AIzaSyD9kWG_RgdfBURwHafLWcN3P_qVxMvqHTE",
+  authDomain: "demobarbearia-4eb73.firebaseapp.com",
+  databaseURL: "https://demobarbearia-4eb73-default-rtdb.firebaseio.com",
+  projectId: "demobarbearia-4eb73",
+  storageBucket: "demobarbearia-4eb73.firebasestorage.app",
+  messagingSenderId: "522986196174",
+  appId: "1:522986196174:web:7d78eb757acf64f3ff149f"
 };
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+
+let db = null;
+let firebaseReady = false;
+try {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.database();
+  firebaseReady = true;
+} catch(e) {
+  console.warn('Firebase offline, using localStorage fallback', e);
+}
+
+// ==================== LOCAL DB FALLBACK ====================
+function localGet(key){
+  if(key.endsWith('/')){
+    const prefix='ld_'+key;
+    const result={};
+    for(let i=0;i<localStorage.length;i++){
+      const k=localStorage.key(i);
+      if(k&&k.startsWith(prefix)&&k.length>prefix.length){
+        const subKey=k.slice(prefix.length);
+        try{result[subKey]=JSON.parse(localStorage.getItem(k));}catch(e){}
+      }
+    }
+    return Object.keys(result).length>0?result:null;
+  }
+  try{return JSON.parse(localStorage.getItem('ld_'+key));}catch(e){return null;}
+}
+function localSet(key,val){
+  localStorage.setItem('ld_'+key,JSON.stringify(val));
+}
+function localDelete(key){localStorage.removeItem('ld_'+key);}
+
+// Unified data layer: works with Firebase OR localStorage
+async function dataGet(key) {
+  if (firebaseReady && db) {
+    try {
+      const snap = await fbTimeout(db.ref(key).once('value'), 5000);
+      return snap.val();
+    } catch(e) { return localGet(key); }
+  }
+  return localGet(key);
+}
+async function dataSet(key, val) {
+  // Always save locally first
+  localSet(key, val);
+  if (firebaseReady && db) {
+    try {
+      await fbTimeout(db.ref(key).set(val), 8000);
+      return true;
+    } catch(e) { return false; }
+  }
+  return false;
+}
+async function dataDelete(key) {
+  localDelete(key);
+  if (firebaseReady && db) {
+    try {
+      await fbTimeout(db.ref(key).remove(), 5000);
+    } catch(e) {}
+  }
+}
+
+function fbTimeout(promise, ms) {
+  return Promise.race([promise, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
+}
 
 const CONFIG_KEY = 'rdo/config';
 const RECORDS_PREFIX = 'rdo/records/';
@@ -636,6 +726,8 @@ function hideSyncOverlay(){
   document.getElementById('sync-bar').style.width='0%';
 }
 
+function isBase64DataUrl(s){return typeof s==='string'&&s.startsWith('data:');}
+
 async function syncPending(){
   if(syncInProgress) return;
   const pending=JSON.parse(localStorage.getItem('rdo_pending')||'[]');
@@ -644,10 +736,24 @@ async function syncPending(){
   showSyncOverlay(pending.length,0,'Sincronizando registros...');
   const synced=[];
   for(let i=0;i<pending.length;i++){
-    const rec=pending[i];
+    const rec={...pending[i]};
     try{
       showSyncOverlay(pending.length,i,'Enviando registro '+(i+1)+'...');
-      await db.ref(RECORD_KEY(rec.id)).set(rec);
+      if(rec.fotosAntes){
+        for(let j=0;j<rec.fotosAntes.length;j++){
+          if(isBase64DataUrl(rec.fotosAntes[j])){
+            try{rec.fotosAntes[j]=await uploadToImgbb(rec.fotosAntes[j]);}catch(e){}
+          }
+        }
+      }
+      if(rec.fotosDepois){
+        for(let j=0;j<rec.fotosDepois.length;j++){
+          if(isBase64DataUrl(rec.fotosDepois[j])){
+            try{rec.fotosDepois[j]=await uploadToImgbb(rec.fotosDepois[j]);}catch(e){}
+          }
+        }
+      }
+      await dataSet(RECORD_KEY(rec.id), rec);
       synced.push(rec.id);
       showSyncOverlay(pending.length,i+1,'Enviado: registro '+(i+1));
     }catch(e){break;}
@@ -685,6 +791,52 @@ function updateOfflineIndicator(){
   if(!navigator.onLine) el.classList.add('visible');
   else el.classList.remove('visible');
 }
+
+// ==================== PENDING MODAL ====================
+function updatePendingIndicator(){
+  const btn=document.getElementById('btn-pending');
+  const badge=document.getElementById('pending-badge');
+  const pending=JSON.parse(localStorage.getItem('rdo_pending')||'[]');
+  if(pending.length>0){
+    btn.style.display='inline-block';
+    badge.textContent=pending.length;
+  }else{
+    btn.style.display='none';
+  }
+}
+
+function openPendingModal(){
+  const pending=JSON.parse(localStorage.getItem('rdo_pending')||'[]');
+  const el=document.getElementById('pending-list');
+  if(pending.length===0){
+    el.innerHTML='<div style="color:var(--text-muted);text-align:center;padding:20px">Nenhum registro pendente</div>';
+  }else{
+    el.innerHTML=pending.map((r,i)=>`
+      <div class="pending-record-item">
+        <div class="pr-info">
+          <div class="pr-title">${escapeHtml(r.oc||'')} — ${escapeHtml(r.equipe||'')}</div>
+          <div class="pr-date">${formatDate(r.data)} · ${escapeHtml(r.cidade||'')}</div>
+          <div class="pr-sub">${escapeHtml(r.responsavel||'')} · ${escapeHtml(r.tipoOrdem||'')}</div>
+        </div>
+        <div class="pr-status">Aguardando</div>
+      </div>
+    `).join('');
+  }
+  document.getElementById('pending-modal').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+
+function closePendingModal(){
+  document.getElementById('pending-modal').classList.remove('open');
+  document.body.style.overflow='';
+}
+
+// Call after sync to update indicator
+const _origSyncPending = syncPending;
+syncPending = async function(){
+  await _origSyncPending.call(this);
+  updatePendingIndicator();
+};
 
 // ==================== CONFIG CACHE ====================
 function cacheConfig(c){
@@ -726,7 +878,7 @@ async function uploadToImgbb(base64DataUrl){
 }
 
 // ==================== LOGIN ====================
-function doLogin(){
+async function doLogin(){
   const user=document.getElementById('login-user').value.trim();
   const pass=document.getElementById('login-pass').value.trim();
   const errEl=document.getElementById('login-err');
@@ -734,9 +886,9 @@ function doLogin(){
   errEl.textContent='';
   document.getElementById('login-btn').disabled=true;
 
-  fbTimeout(db.ref('rdo/users/'+user).once('value'),5000).then(snap=>{
+  try{
+    const val=await dataGet('rdo/users/'+user);
     document.getElementById('login-btn').disabled=false;
-    const val=snap.val();
     if(!val){
       if(checkOfflineLogin(user,pass)){
         loggedUser=user;
@@ -757,7 +909,7 @@ function doLogin(){
     localStorage.setItem('rdo_user',user);
     cacheCredentials(user,pass);
     showApp();
-  }).catch(()=>{
+  }catch(e){
     document.getElementById('login-btn').disabled=false;
     if(checkOfflineLogin(user,pass)){
       loggedUser=user;
@@ -767,7 +919,7 @@ function doLogin(){
       return;
     }
     errEl.textContent='Erro de conexão';
-  });
+  }
 }
 
 function doLogout(){
@@ -779,30 +931,13 @@ function doLogout(){
   document.getElementById('login-pass').value='';
 }
 
-function checkSession(){
-  const u=localStorage.getItem('rdo_user');
-  if(u){
-    db.ref('rdo/users/'+u).once('value',snap=>{
-      if(snap.val()){
-        loggedUser=u;
-        showApp();
-      } else {
-        loggedUser=u;
-        showApp();
-      }
-    }).catch(()=>{
-      loggedUser=u;
-      showApp();
-    });
-  }
-}
-
 // ==================== APP INIT ====================
 function showApp(){
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   document.getElementById('topbar-user').textContent=loggedUser;
   updateOfflineIndicator();
+  updatePendingIndicator();
   loadConfig();
 }
 
@@ -812,8 +947,7 @@ function loadConfig(){
     appConfig=cached;
     populateForm();
   }
-  fbTimeout(db.ref(CONFIG_KEY).once('value'),8000).then(snap=>{
-    let c=snap.val();
+  dataGet(CONFIG_KEY).then(c=>{
     if(!c) c=JSON.parse(JSON.stringify(DEFAULT_CONFIG));
     if(!c.equipes) c.equipes=DEFAULT_CONFIG.equipes;
     if(!c.atividades) c.atividades=DEFAULT_CONFIG.atividades;
@@ -1102,11 +1236,22 @@ async function saveRDO(){
   try{
     const antesUrls=[];
     const depoisUrls=[];
+    let uploadOffline=false;
     for(let i=0;i<photoAntes.length;i++){
-      antesUrls.push(await uploadToImgbb(photoAntes[i]));
+      try{
+        antesUrls.push(await uploadToImgbb(photoAntes[i]));
+      }catch(e){
+        antesUrls.push(photoAntes[i]);
+        uploadOffline=true;
+      }
     }
     for(let i=0;i<photoDepois.length;i++){
-      depoisUrls.push(await uploadToImgbb(photoDepois[i]));
+      try{
+        depoisUrls.push(await uploadToImgbb(photoDepois[i]));
+      }catch(e){
+        depoisUrls.push(photoDepois[i]);
+        uploadOffline=true;
+      }
     }
 
     const equipeObj=appConfig.equipes[equipeIdx]||{nome:'',pessoas:[]};
@@ -1142,12 +1287,13 @@ async function saveRDO(){
     saveLocally(record);
 
     try{
-      await db.ref(RECORD_KEY(record.id)).set(record);
+      await dataSet(RECORD_KEY(record.id), record);
     }catch(e){
       toast('Salvo offline. Será sincronizado.','success');
     }
 
     toast('RDO salvo com sucesso!','success');
+    updatePendingIndicator();
     resetForm();
   }catch(e){
     console.error(e);
@@ -1185,17 +1331,17 @@ function resetForm(){
 }
 
 // ==================== DETAIL MODAL ====================
-function openDetailModal(recordId){
-  db.ref(RECORD_KEY(recordId)).once('value',snap=>{
-    const r=snap.val();
+async function openDetailModal(recordId){
+  try{
+    const r=await dataGet(RECORD_KEY(recordId));
     if(!r){toast('Registro não encontrado','error');return;}
     showDetailModal(r);
-  }).catch(()=>{
+  }catch(e){
     const pending=JSON.parse(localStorage.getItem('rdo_pending')||'[]');
     const found=pending.find(p=>p.id===recordId);
     if(found) showDetailModal(found);
     else toast('Registro não encontrado','error');
-  });
+  }
 }
 
 function showDetailModal(r){
@@ -1286,15 +1432,10 @@ function closeDetailModal(){
 }
 
 // ==================== INIT ====================
-function fbTimeout(promise,ms){
-  return Promise.race([promise,new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),ms))]);
-}
-
 async function ensureDefaultAdmin(){
   try{
-    await fbTimeout(db.ref('rdo/users/admin').once('value'),5000).then(snap=>{
-      if(!snap.val()) return fbTimeout(db.ref('rdo/users/admin').set({senha:'admin123'}),5000);
-    });
+    const existing=await dataGet('rdo/users/admin');
+    if(!existing){await dataSet('rdo/users/admin',{senha:'admin123'});}
   }catch(e){console.error('ensureDefaultAdmin',e);}
 }
 
@@ -1306,7 +1447,6 @@ function initApp(){
   if(u){
     loggedUser=u;
     showApp();
-    db.ref('rdo/users/'+u).once('value').catch(()=>{});
   }
 }
 

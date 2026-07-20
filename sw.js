@@ -1,99 +1,180 @@
-const CACHE_NAME='rdo-v3';
-const FIREBASE_URLS=[
+const CACHE_NAME = 'rdo-v5';
+const STATIC_ASSETS = [
+  'index.html',
+  'admin.html',
+  'manifest.json',
+  'icon.svg',
+  'sw.js'
+];
+
+const FIREBASE_URLS = [
   'https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js',
   'https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js'
 ];
 
-self.addEventListener('install',e=>{
+const FONT_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com'];
+const API_HOSTS = ['api.imgbb.com', 'firestore.googleapis.com'];
+const DB_HOST_PATTERNS = ['firebaseio.com'];
+
+self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE_NAME).then(c=>{
-      return c.addAll([
-        'index.html',
-        'admin.html',
-        'manifest.json',
-        'icon.svg',
-        'sw.js'
-      ]).then(()=>{
-        return Promise.allSettled(
-          FIREBASE_URLS.map(url=>fetch(url).then(r=>{if(r.ok)return c.put(url,r);}))
-        );
-      });
-    }).then(()=>self.skipWaiting())
+    (async () => {
+      const cache = await caches.open(CACHE_NAME);
+      await cache.addAll(STATIC_ASSETS);
+      await Promise.allSettled(
+        FIREBASE_URLS.map(url =>
+          fetch(url).then(r => { if (r.ok) cache.put(url, r); }).catch(() => {})
+        )
+      );
+      self.skipWaiting();
+    })()
   );
 });
 
-self.addEventListener('activate',e=>{
+self.addEventListener('activate', e => {
   e.waitUntil(
-    caches.keys().then(keys=>Promise.all(
-      keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k))
-    )).then(()=>self.clients.claim())
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)));
+      await self.clients.claim();
+    })()
   );
 });
 
-self.addEventListener('fetch',e=>{
-  const url=new URL(e.request.url);
-  if(e.request.method!=='GET') return;
+self.addEventListener('fetch', e => {
+  const url = new URL(e.request.url);
 
-  if(url.hostname==='fonts.googleapis.com'||url.hostname==='fonts.gstatic.com'){
-    e.respondWith(
-      caches.match(e.request).then(r=>r||fetch(e.request).then(resp=>{
-        const clone=resp.clone();
-        caches.open(CACHE_NAME).then(c=>c.put(e.request,clone));
-        return resp;
-      }).catch(()=>new Response('',{status:504})))
-    );
+  if (e.request.method !== 'GET') return;
+
+  const host = url.hostname;
+
+  // Fonts: cache-first (stale-while-revalidate)
+  if (FONT_HOSTS.includes(host)) {
+    e.respondWith(fontStrategy(e.request));
     return;
   }
 
-  if(url.hostname==='www.gstatic.com'&&url.pathname.includes('firebase')){
-    e.respondWith(
-      caches.match(e.request).then(r=>r||fetch(e.request).then(resp=>{
-        const clone=resp.clone();
-        caches.open(CACHE_NAME).then(c=>c.put(e.request,clone));
-        return resp;
-      }).catch(()=>new Response('',{status:504})))
-    );
+  // Firebase SDK: cache-first
+  if (host === 'www.gstatic.com' && url.pathname.includes('firebase')) {
+    e.respondWith(cacheFirst(e.request));
     return;
   }
 
-  if(url.hostname==='api.imgbb.com'){
-    e.respondWith(fetch(e.request));
+  // Image upload: network-only (no caching)
+  if (host === 'api.imgbb.com') {
+    e.respondWith(fetch(e.request).catch(() => new Response('', { status: 504 })));
     return;
   }
 
-  if(url.hostname==='firestore.googleapis.com'||url.hostname.includes('firebaseio.com')){
-    e.respondWith(fetch(e.request).catch(()=>new Response('{}',{status:503,headers:{'Content-Type':'application/json'}})));
+  // Firebase DB: network-first with offline fallback
+  if (host === 'firestore.googleapis.com' || DB_HOST_PATTERNS.some(p => host.includes(p))) {
+    e.respondWith(networkFirstFirebase(e.request));
     return;
   }
 
-  e.respondWith(
-    caches.match(e.request).then(cached=>{
-      const fetchPromise=fetch(e.request).then(resp=>{
-        if(resp.ok){
-          const clone=resp.clone();
-          caches.open(CACHE_NAME).then(c=>c.put(e.request,clone));
-        }
-        return resp;
-      }).catch(()=>cached);
+  // Navigation requests (HTML pages): network-first, fallback to cache
+  if (e.request.mode === 'navigate') {
+    e.respondWith(networkFirstNavigation(e.request));
+    return;
+  }
 
-      return cached||fetchPromise;
-    })
-  );
+  // Everything else (images, etc.): stale-while-revalidate
+  e.respondWith(staleWhileRevalidate(e.request));
 });
 
-self.addEventListener('message',e=>{
-  if(e.data&&e.data.type==='SKIP_WAITING'){
-    self.skipWaiting();
-  }
-});
+// ---------- Strategies ----------
 
-self.addEventListener('sync',e=>{
-  if(e.tag==='sync-pending'){
+async function cacheFirst(request) {
+  const cached = await caches.match(request);
+  if (cached) return cached;
+  try {
+    const resp = await fetch(request);
+    if (resp.ok) {
+      const clone = resp.clone();
+      caches.open(CACHE_NAME).then(c => c.put(request, clone));
+    }
+    return resp;
+  } catch {
+    return new Response('', { status: 504 });
+  }
+}
+
+async function fontStrategy(request) {
+  const cached = await caches.match(request);
+  if (cached) {
+    fetchAndCache(request).catch(() => {});
+    return cached;
+  }
+  try {
+    const resp = await fetch(request);
+    if (resp.ok) {
+      const clone = resp.clone();
+      caches.open(CACHE_NAME).then(c => c.put(request, clone));
+    }
+    return resp;
+  } catch {
+    return new Response('', { status: 504 });
+  }
+}
+
+async function staleWhileRevalidate(request) {
+  const cached = await caches.match(request);
+  const fetchPromise = fetchAndCache(request).catch(() => {});
+  return cached || fetchPromise;
+}
+
+async function networkFirstNavigation(request) {
+  try {
+    const resp = await fetch(request);
+    if (resp.ok) {
+      const clone = resp.clone();
+      caches.open(CACHE_NAME).then(c => c.put(request, clone));
+    }
+    return resp;
+  } catch {
+    const cached = await caches.match(request);
+    if (cached) return cached;
+    const fallback = await caches.match('index.html');
+    return fallback || new Response('Offline', { status: 503 });
+  }
+}
+
+async function networkFirstFirebase(request) {
+  try {
+    const resp = await fetch(request);
+    return resp;
+  } catch {
+    return new Response('{}', {
+      status: 503,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+async function fetchAndCache(request) {
+  const resp = await fetch(request);
+  if (resp.ok) {
+    const clone = resp.clone();
+    caches.open(CACHE_NAME).then(c => c.put(request, clone));
+  }
+  return resp;
+}
+
+// ---------- Background Sync ----------
+
+self.addEventListener('sync', e => {
+  if (e.tag === 'sync-pending') {
     e.waitUntil(syncPendingRecords());
   }
 });
 
-async function syncPendingRecords(){
-  const clients=await self.clients.matchAll();
-  clients.forEach(c=>c.postMessage({type:'TRIGGER_SYNC'}));
+async function syncPendingRecords() {
+  const clients = await self.clients.matchAll();
+  clients.forEach(c => c.postMessage({ type: 'TRIGGER_SYNC' }));
 }
+
+self.addEventListener('message', e => {
+  if (e.data && e.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
