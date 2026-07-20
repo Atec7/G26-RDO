@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RDO de Campo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<style>
+:root{
+  --bg:#12171f;--panel:#1c232e;--panel-alt:#242d3a;--line:#333f4e;--line-soft:#2a323f;
+  --amber:#f2a93b;--amber-dim:#7a5b26;--teal:#45d0b5;--teal-dim:#245a4f;
+  --danger:#e1584f;--danger-dim:#5c2a26;--text:#eef1f5;--text-muted:#8b97a8;--text-faint:#5c6879;
+  --display:'Oswald',sans-serif;--body:'Inter',system-ui,sans-serif;--mono:'JetBrains Mono',monospace;
+  --radius:10px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:15px}
+body{background:var(--bg);color:var(--text);font-family:var(--body);min-height:100vh;overflow-x:hidden}
+input,select,textarea,button{font:inherit;color:inherit;border:none;outline:none;background:none}
+button{cursor:pointer}
+label{display:block;font-size:.8rem;color:var(--text-muted);margin-bottom:4px;font-weight:500}
+input[type=text],input[type=number],input[type=date],input[type=time],input[type=file],select,textarea{
+  width:100%;background:var(--panel-alt);border:1px solid var(--line-soft);border-radius:6px;
+  padding:10px 12px;color:var(--text);font-size:.92rem;transition:border .2s;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--amber)}
+select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238b97a8' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
+input[type=file]{padding:8px;border-style:dashed}
+input[type=file]::-webkit-file-upload-button{display:none}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--panel)}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+
+/* LOGIN */
+#login-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999}
+.login-box{background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--radius);padding:40px 32px;width:360px;max-width:92vw;text-align:center}
+.login-box h1{font-family:var(--display);font-size:1.6rem;color:var(--amber);margin-bottom:4px;letter-spacing:1px}
+.login-box p{font-size:.82rem;color:var(--text-muted);margin-bottom:28px}
+.login-box .field{margin-bottom:16px;text-align:left}
+.login-box .err{color:var(--danger);font-size:.82rem;margin-bottom:12px;min-height:18px}
+.btn-primary{width:100%;padding:12px;background:var(--amber);color:#111;font-weight:700;border-radius:8px;font-size:.95rem;transition:opacity .2s}
+.btn-primary:hover{opacity:.88}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
+.hidden{display:none!important}
+
+/* TOPBAR */
+.topbar{background:var(--panel);border-bottom:1px solid var(--line-soft);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.topbar-brand{font-family:var(--display);font-size:1.2rem;color:var(--amber);text-decoration:none;letter-spacing:.5px}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.topbar-user{font-size:.82rem;color:var(--text-muted)}
+.btn-ghost{padding:6px 14px;border:1px solid var(--line);border-radius:6px;color:var(--text-muted);font-size:.82rem;transition:all .2s}
+.btn-ghost:hover{border-color:var(--danger);color:var(--danger)}
+
+/* MAIN */
+.main{max-width:800px;margin:0 auto;padding:20px 16px 100px}
+.section{background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--radius);margin-bottom:20px;overflow:hidden}
+.section-head{padding:14px 18px;border-bottom:1px solid var(--line-soft);display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none}
+.section-head .num{font-family:var(--display);font-size:.85rem;color:var(--amber);background:var(--amber-dim);border-radius:5px;padding:2px 8px;min-width:28px;text-align:center}
+.section-head .title{font-family:var(--display);font-size:.95rem;letter-spacing:.5px;text-transform:uppercase;color:var(--text)}
+.section-head .chevron{margin-left:auto;color:var(--text-faint);transition:transform .25s;font-size:.7rem}
+.section-head.collapsed .chevron{transform:rotate(-90deg)}
+.section-body{padding:18px;display:grid;gap:14px}
+.section-body.collapsed{display:none}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-row.three{grid-template-columns:1fr 1fr 1fr}
+.form-row.four{grid-template-columns:1fr 1fr 1fr 1fr}
+.form-group{display:flex;flex-direction:column}
+.full{grid-column:1/-1}
+
+/* TIMELINE */
+.timeline{display:flex;align-items:flex-start;gap:0;position:relative;padding:8px 0}
+.timeline::before{content:'';position:absolute;top:24px;left:24px;right:24px;height:3px;background:var(--line);border-radius:2px;z-index:0}
+.tl-stage{flex:1;display:flex;flex-direction:column;align-items:center;position:relative;z-index:1;min-width:0}
+.tl-dot{width:32px;height:32px;border-radius:50%;border:2px solid var(--line);background:var(--panel);display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;color:var(--text-faint);transition:all .25s;margin-bottom:6px;cursor:pointer}
+.tl-stage.active .tl-dot{border-color:var(--amber);color:var(--amber);background:var(--amber-dim)}
+.tl-stage.done .tl-dot{border-color:var(--teal);color:#fff;background:var(--teal)}
+.tl-label{text-align:center;font-size:.6rem;color:var(--text-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;padding:0 2px}
+.tl-time{text-align:center;font-family:var(--mono);font-size:.65rem;color:var(--text-muted);margin-top:2px}
+.tl-reset{position:absolute;top:0;right:0;background:none;border:1px solid var(--line-soft);color:var(--text-faint);font-size:.7rem;padding:4px 8px;border-radius:5px;cursor:pointer;transition:all .2s}
+.tl-reset:hover{border-color:var(--danger);color:var(--danger)}
+
+/* CHECKBOXES */
+.check-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.check-item{display:flex;align-items:center;gap:10px;background:var(--panel-alt);border:1px solid var(--line-soft);border-radius:8px;padding:10px 14px;cursor:pointer;transition:border .2s}
+.check-item:hover{border-color:var(--line)}
+.check-item.checked{border-color:var(--amber);background:rgba(242,169,59,.06)}
+.check-box{width:20px;height:20px;border:2px solid var(--line);border-radius:5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;font-size:.7rem;color:transparent}
+.check-item.checked .check-box{border-color:var(--amber);background:var(--amber);color:#111}
+.check-text{font-size:.85rem;color:var(--text-muted)}
+.check-item.checked .check-text{color:var(--text)}
+.sub-input{grid-column:1/-1;margin-top:-4px;display:none}
+.sub-input.visible{display:block}
+
+/* ACTIVITIES TABLE */
+.act-table{width:100%;border-collapse:collapse;font-size:.85rem}
+.act-table th{text-align:left;padding:8px 10px;color:var(--text-muted);font-weight:500;border-bottom:1px solid var(--line-soft);font-size:.75rem;text-transform:uppercase;letter-spacing:.5px}
+.act-table td{padding:8px 10px;border-bottom:1px solid var(--line-soft);color:var(--text)}
+.act-table tr:last-child td{border-bottom:none}
+.btn-del{background:none;color:var(--danger);font-size:1rem;padding:4px;transition:opacity .2s}
+.btn-del:hover{opacity:.7}
+.btn-add-act{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--panel-alt);border:1px dashed var(--line);border-radius:6px;color:var(--text-muted);font-size:.82rem;transition:all .2s}
+.btn-add-act:hover{border-color:var(--amber);color:var(--amber)}
+.act-add-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.act-add-row .form-group{flex:1;min-width:120px}
+
+/* PHOTOS */
+.photo-row{display:flex;gap:16px;flex-wrap:wrap}
+.photo-col{flex:1;min-width:200px}
+.photo-col h4{font-size:.8rem;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
+.photo-thumbs{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.thumb-wrap{position:relative;width:72px;height:72px;border-radius:6px;overflow:hidden;border:1px solid var(--line-soft);cursor:pointer}
+.thumb-wrap img{width:100%;height:100%;object-fit:cover}
+.thumb-wrap .thumb-del{position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:var(--danger);color:#fff;font-size:.65rem;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s}
+.thumb-wrap:hover .thumb-del{opacity:1}
+
+/* SAVE */
+.save-bar{position:fixed;bottom:0;left:0;right:0;background:var(--panel);border-top:1px solid var(--line-soft);padding:14px 20px;display:flex;align-items:center;justify-content:center;z-index:100}
+.btn-save{padding:12px 40px;background:var(--amber);color:#111;font-family:var(--display);font-size:1rem;font-weight:600;border-radius:8px;letter-spacing:.5px;transition:opacity .2s;position:relative}
+.btn-save:hover{opacity:.88}
+.btn-save:disabled{opacity:.5;cursor:not-allowed}
+.btn-save .spinner{display:none;width:18px;height:18px;border:2px solid transparent;border-top-color:#111;border-radius:50%;animation:spin .6s linear infinite;margin-right:8px;vertical-align:middle}
+.btn-save.loading .spinner{display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* TOAST */
+#toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--line-soft);border-radius:8px;padding:12px 24px;color:var(--text);font-size:.88rem;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;max-width:90vw;text-align:center}
+#toast.show{opacity:1}
+#toast.success{border-color:var(--teal);color:var(--teal)}
+#toast.error{border-color:var(--danger);color:var(--danger)}
+
+/* DETAIL MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .25s}
+.modal-overlay.open{opacity:1;pointer-events:auto}
+.modal-box{background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--radius);width:100%;max-width:680px;max-height:85vh;overflow-y:auto;padding:28px;position:relative}
+.modal-close{position:sticky;top:0;float:right;background:var(--panel-alt);border:1px solid var(--line);width:32px;height:32px;border-radius:6px;color:var(--text-muted);font-size:1rem;display:flex;align-items:center;justify-content:center;z-index:2;transition:all .2s}
+.modal-close:hover{border-color:var(--danger);color:var(--danger)}
+.modal-box h2{font-family:var(--display);color:var(--amber);font-size:1.2rem;margin-bottom:16px;clear:both}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.detail-item label{font-size:.72rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:.5px}
+.detail-item p{font-size:.92rem;color:var(--text);margin-top:2px}
+.detail-full{grid-column:1/-1}
+.detail-section-title{grid-column:1/-1;font-family:var(--display);font-size:.85rem;color:var(--teal);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--line-soft);padding-bottom:4px;margin-top:8px}
+.detail-photos{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px}
+.detail-thumbs{width:80px;height:80px;border-radius:6px;overflow:hidden;border:1px solid var(--line-soft);cursor:pointer;transition:transform .2s}
+.detail-thumbs:hover{transform:scale(1.05)}
+.detail-thumbs img{width:100%;height:100%;object-fit:cover}
+.team-member{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line-soft);font-size:.88rem}
+.team-member:last-child{border-bottom:none}
+.team-cargo{font-size:.72rem;color:var(--amber);background:var(--amber-dim);padding:2px 6px;border-radius:4px;white-space:nowrap}
+
+/* IMAGE VIEWER */
+.img-viewer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:600;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
+.img-viewer-overlay.open{opacity:1;pointer-events:auto}
+.img-viewer-overlay img{max-width:90vw;max-height:80vh;object-fit:contain;border-radius:6px}
+.img-viewer-close{position:fixed;top:16px;right:20px;background:var(--panel);border:1px solid var(--line);width:40px;height:40px;border-radius:8px;color:var(--text);font-size:1.2rem;display:flex;align-items:center;justify-content:center;z-index:601;transition:all .2s}
+.img-viewer-close:hover{border-color:var(--danger);color:var(--danger)}
+.img-viewer-nav{position:fixed;top:50%;transform:translateY(-50%);background:var(--panel);border:1px solid var(--line);width:44px;height:44px;border-radius:50%;color:var(--text);font-size:1.2rem;display:flex;align-items:center;justify-content:center;z-index:601;transition:all .2s}
+.img-viewer-nav:hover{border-color:var(--amber);color:var(--amber)}
+.img-viewer-nav.prev{left:16px}
+.img-viewer-nav.next{right:16px}
+.img-viewer-counter{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--line-soft);padding:6px 16px;border-radius:20px;font-family:var(--mono);font-size:.85rem;color:var(--text-muted);z-index:601}
+
+/* RESPONSIVE */
+@media(max-width:600px){
+  .form-row,.form-row.three,.form-row.four{grid-template-columns:1fr}
+  .check-grid{grid-template-columns:1fr}
+  .detail-grid{grid-template-columns:1fr}
+  .photo-row{flex-direction:column}
+  .act-add-row{flex-direction:column}
+  .timeline{overflow-x:auto;padding-bottom:8px}
+  .tl-label{font-size:.5rem}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <h1>RDO de Campo</h1>
+    <p>Relatório Diário de Obra</p>
+    <div class="field">
+      <label>Usuário</label>
+      <input type="text" id="login-user" placeholder="Digite seu usuário">
+    </div>
+    <div class="field">
+      <label>Senha</label>
+      <input type="text" id="login-pass" placeholder="Digite sua senha">
+    </div>
+    <div class="err" id="login-err"></div>
+    <button class="btn-primary" id="login-btn" onclick="doLogin()">Entrar</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden">
+  <div class="topbar">
+    <a href="admin.html" class="topbar-brand">RDO de Campo</a>
+    <div class="topbar-right">
+      <span class="topbar-user" id="topbar-user"></span>
+      <button class="btn-ghost" onclick="doLogout()">Sair</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- Section 01 -->
+    <div class="section">
+      <div class="section-head" onclick="toggleSection(this)">
+        <span class="num">01</span>
+        <span class="title">Identificação</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="section-body">
+        <div class="form-row">
+          <div class="form-group full">
+            <label>Equipe</label>
+            <select id="f-equipe"></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Responsável / Encarregado</label>
+            <input type="text" id="f-responsavel" placeholder="Nome do responsável">
+          </div>
+          <div class="form-group">
+            <label>Tipo de Ordem</label>
+            <select id="f-tipo" onchange="updateIdentLabel()">
+              <option value="Ocorrência">Ocorrência</option>
+              <option value="Projeto">Projeto</option>
+              <option value="OSE">OSE</option>
+              <option value="Poda">Poda</option>
+              <option value="NDS">NDS</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label id="f-id-label">Identificador</label>
+            <input type="text" id="f-identificador" placeholder="Nº da ocorrência">
+          </div>
+          <div class="form-group">
+            <label>Cidade</label>
+            <input type="text" id="f-cidade" placeholder="Cidade">
+          </div>
+        </div>
+        <div class="form-row four">
+          <div class="form-group">
+            <label>Data</label>
+            <input type="date" id="f-data">
+          </div>
+          <div class="form-group">
+            <label>KM Inicial</label>
+            <input type="number" id="f-km-ini" step="0.1" placeholder="0.0">
+          </div>
+          <div class="form-group">
+            <label>KM Final</label>
+            <input type="number" id="f-km-fin" step="0.1" placeholder="0.0">
+          </div>
+          <div class="form-group">
+            <label>Total KM</label>
+            <input type="text" id="f-km-total" readonly style="opacity:.6">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 02 -->
+    <div class="section">
+      <div class="section-head" onclick="toggleSection(this)">
+        <span class="num">02</span>
+        <span class="title">Linha do Turno</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="section-body">
+        <div style="position:relative">
+          <div class="timeline" id="timeline"></div>
+          <button class="tl-reset" onclick="resetTimeline()" title="Resetar linha do turno">Limpar</button>
+        </div>
+        <div class="form-row" style="margin-top:8px">
+          <div class="form-group">
+            <label>Observações do turno</label>
+            <textarea id="f-tl-obs" rows="2" placeholder="Anotações gerais..."></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 03 -->
+    <div class="section">
+      <div class="section-head" onclick="toggleSection(this)">
+        <span class="num">03</span>
+        <span class="title">Condições Climáticas</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="section-body">
+        <div style="display:flex;gap:12px;flex-wrap:wrap" id="clima-opts">
+          <label class="check-item" onclick="selectClima(this,'Bom')"><span class="check-box">☀</span><span class="check-text">Bom</span></label>
+          <label class="check-item" onclick="selectClima(this,'Nublado')"><span class="check-box">☁</span><span class="check-text">Nublado</span></label>
+          <label class="check-item" onclick="selectClima(this,'Chuvoso')"><span class="check-box">🌧</span><span class="check-text">Chuvoso</span></label>
+          <label class="check-item" onclick="selectClima(this,'Impraticável')"><span class="check-box">⚠</span><span class="check-text">Impraticável</span></label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 04 -->
+    <div class="section">
+      <div class="section-head" onclick="toggleSection(this)">
+        <span class="num">04</span>
+        <span class="title">Impedimento de Execução</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="section-body">
+        <div class="check-grid" id="impedimento-opts">
+          <label class="check-item" onclick="toggleImped(this)"><span class="check-box">✓</span><span class="check-text">Falta de material</span></label>
+          <input type="text" class="sub-input" id="imp-material-sub" placeholder="Especificar material em falta...">
+          <label class="check-item" onclick="toggleImped(this)"><span class="check-box">✓</span><span class="check-text">Equipe incompleta</span></label>
+          <label class="check-item" onclick="toggleImped(this)"><span class="check-box">✓</span><span class="check-text">Veículo indisponível</span></label>
+          <label class="check-item" onclick="toggleImped(this)"><span class="check-box">✓</span><span class="check-text">Equipamento defeituoso</span></label>
+          <label class="check-item" onclick="toggleImped(this)"><span class="check-box">✓</span><span class="check-text">Condição climática</span></label>
+          <label class="check-item" onclick="toggleImped(this)"><span class="check-box">✓</span><span class="check-text">Acesso negado</span></label>
+          <label class="check-item" onclick="toggleImped(this)"><span class="check-box">✓</span><span class="check-text">Outros</span></label>
+        </div>
+        <div class="form-group full" style="margin-top:6px">
+          <label>Observação do impedimento</label>
+          <textarea id="f-imp-obs" rows="2" placeholder="Detalhes adicionais..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 05 -->
+    <div class="section">
+      <div class="section-head" onclick="toggleSection(this)">
+        <span class="num">05</span>
+        <span class="title">Atividades Executadas</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="section-body">
+        <div class="act-add-row" style="margin-bottom:14px">
+          <div class="form-group" style="flex:2">
+            <label>Atividade</label>
+            <select id="f-act-select"></select>
+          </div>
+          <div class="form-group" style="flex:.6">
+            <label>Quantidade</label>
+            <input type="number" id="f-act-qtd" min="1" value="1">
+          </div>
+          <button class="btn-add-act" onclick="addActivity()" style="height:42px;margin-top:auto">+ Adicionar</button>
+        </div>
+        <div id="act-table-wrap">
+          <table class="act-table">
+            <thead><tr><th>Cód.</th><th>Descrição</th><th>Qtd.</th><th>Valor Unit.</th><th>Total</th><th></th></tr></thead>
+            <tbody id="act-tbody"></tbody>
+          </table>
+        </div>
+        <div id="act-empty" style="text-align:center;color:var(--text-faint);font-size:.85rem;padding:20px 0">Nenhuma atividade adicionada</div>
+      </div>
+    </div>
+
+    <!-- Section 06 -->
+    <div class="section">
+      <div class="section-head" onclick="toggleSection(this)">
+        <span class="num">06</span>
+        <span class="title">Evidências Fotográficas</span>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="section-body">
+        <div class="photo-row">
+          <div class="photo-col">
+            <h4>Fotos Antes</h4>
+            <input type="file" accept="image/*" multiple onchange="handlePhoto('antes',this.files)">
+            <div class="photo-thumbs" id="thumbs-antes"></div>
+          </div>
+          <div class="photo-col">
+            <h4>Fotos Depois</h4>
+            <input type="file" accept="image/*" multiple onchange="handlePhoto('depois',this.files)">
+            <div class="photo-thumbs" id="thumbs-depois"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Save Bar -->
+  <div class="save-bar">
+    <button class="btn-save" id="btn-save" onclick="saveRDO()">
+      <span class="spinner"></span>Salvar RDO
+    </button>
+  </div>
+</div>
+
+<!-- Record Detail Modal -->
+<div class="modal-overlay" id="detail-modal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeDetailModal()">✕</button>
+    <h2 id="detail-title">Detalhes do RDO</h2>
+    <div class="detail-grid" id="detail-content"></div>
+  </div>
+</div>
+
+<!-- Image Viewer Modal -->
+<div class="img-viewer-overlay" id="img-viewer" onclick="if(event.target===this)closeImageViewer()">
+  <button class="img-viewer-close" onclick="closeImageViewer()">✕</button>
+  <button class="img-viewer-nav prev" onclick="navImageViewer(-1)">‹</button>
+  <img id="img-viewer-src" src="">
+  <button class="img-viewer-nav next" onclick="navImageViewer(1)">›</button>
+  <div class="img-viewer-counter" id="img-viewer-counter"></div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDFQCMsX04fwh7MVyEpvXnXD0U4TD5Or5w",
+  authDomain: "ja-barbearia.firebaseapp.com",
+  databaseURL: "https://ja-barbearia-default-rtdb.firebaseio.com",
+  projectId: "ja-barbearia",
+  storageBucket: "ja-barbearia.firebasestorage.app",
+  messagingSenderId: "213237027963",
+  appId: "1:213237027963:web:7d585b158ee06d3ab7fede"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+const CONFIG_KEY = 'rdo/config';
+const RECORDS_PREFIX = 'rdo/records/';
+const RECORD_KEY = (id) => RECORDS_PREFIX + id;
+
+const DEFAULT_CONFIG = {
+  equipes: [
+    {nome:'RVRU106m',pessoas:[{nome:'Supervisor',cargo:'Supervisor'},{nome:'Motorista',cargo:'Motorista'}]},
+    {nome:'RVRO104m',pessoas:[{nome:'Supervisor',cargo:'Supervisor'},{nome:'Motorista',cargo:'Motorista'}]},
+    {nome:'RVRO102m',pessoas:[{nome:'Supervisor',cargo:'Supervisor'},{nome:'Motorista',cargo:'Motorista'}]}
+  ],
+  atividades: [
+    {cod:'0101', descricao:'Poda de árvore em rede de baixa tensão', valor: 85.00},
+    {cod:'0202', descricao:'Substituição de isolador', valor: 42.50},
+    {cod:'0303', descricao:'Reaperto de conexão', valor: 18.00}
+  ]
+};
+
+const TL_STAGES = [
+  {key:'saída base', label:'Saída Base'},
+  {key:'chegada local', label:'Chegada Local'},
+  {key:'início serviço', label:'Início Serviço'},
+  {key:'almoco', label:'Almoço'},
+  {key:'retorno serviço', label:'Retorno Serviço'},
+  {key:'conclusão', label:'Conclusão'},
+  {key:'chegada base', label:'Chegada Base'}
+];
+
+let appConfig = null;
+let loggedUser = null;
+let activities = [];
+let photoAntes = [];
+let photoDepois = [];
+let timelineState = {};
+let climaSel = '';
+let impedSel = [];
+
+// Image viewer state
+let viewerImages = [];
+let viewerIdx = 0;
+
+// --- Utilities ---
+function escapeHtml(s){
+  if(!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function fmtMoney(n){
+  return Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+}
+function nowTime(){
+  const d=new Date();
+  return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+function formatDate(d){
+  if(!d) return '';
+  const p=d.split('-');
+  if(p.length!==3) return d;
+  return p[2]+'/'+p[1]+'/'+p[0];
+}
+let toastTimer=null;
+function toast(msg,type){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.className='show'+(type?' '+type:'');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>{t.className=''},3000);
+}
+function genId(){
+  return Date.now().toString(36)+Math.random().toString(36).substr(2,6);
+}
+
+// --- Upload ---
+async function uploadToImgbb(base64DataUrl){
+  const parts = base64DataUrl.split(',');
+  const mime = (parts[0].match(/data:(.*?);/)||[])[1] || 'image/jpeg';
+  const ext = mime.split('/')[1] || 'jpg';
+  const byteStr = atob(parts[1]);
+  const arr = new Uint8Array(byteStr.length);
+  for(let i=0;i<byteStr.length;i++) arr[i] = byteStr.charCodeAt(i);
+  const blob = new Blob([arr], {type: mime});
+  const fd = new FormData();
+  fd.append('key', '95bb16ee776d7e20f26857cec98bd372');
+  fd.append('image', blob, 'foto.' + ext);
+  const res = await fetch('https://api.imgbb.com/1/upload', {method:'POST', body: fd});
+  const json = await res.json();
+  if(json.success) return json.data.url;
+  throw new Error(json.error?.message || 'Falha no upload');
+}
+
+// --- Login ---
+function doLogin(){
+  const user=document.getElementById('login-user').value.trim();
+  const pass=document.getElementById('login-pass').value.trim();
+  const errEl=document.getElementById('login-err');
+  if(!user||!pass){errEl.textContent='Preencha todos os campos';return;}
+  errEl.textContent='';
+  document.getElementById('login-btn').disabled=true;
+  db.ref('rdo/users/'+user).once('value',snap=>{
+    document.getElementById('login-btn').disabled=false;
+    const val=snap.val();
+    if(!val){errEl.textContent='Usuário não encontrado';return;}
+    if(val.senha!==pass){errEl.textContent='Senha incorreta';return;}
+    loggedUser=user;
+    localStorage.setItem('rdo_user',user);
+    showApp();
+  }).catch(e=>{
+    document.getElementById('login-btn').disabled=false;
+    errEl.textContent='Erro de conexão';
+  });
+}
+function doLogout(){
+  loggedUser=null;
+  localStorage.removeItem('rdo_user');
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('login-user').value='';
+  document.getElementById('login-pass').value='';
+}
+function checkSession(){
+  const u=localStorage.getItem('rdo_user');
+  if(u){
+    db.ref('rdo/users/'+u).once('value',snap=>{
+      if(snap.val()){loggedUser=u;showApp();}
+      else{localStorage.removeItem('rdo_user');}
+    }).catch(()=>{});
+  }
+}
+
+// --- App Init ---
+function showApp(){
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  document.getElementById('topbar-user').textContent=loggedUser;
+  loadConfig();
+}
+
+function loadConfig(){
+  db.ref(CONFIG_KEY).once('value',snap=>{
+    let c=snap.val();
+    if(!c) c=JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+    if(!c.equipes) c.equipes=DEFAULT_CONFIG.equipes;
+    if(!c.atividades) c.atividades=DEFAULT_CONFIG.atividades;
+    if(c.equipes.length>0 && typeof c.equipes[0]==='string'){
+      c.equipes=c.equipes.map(nome=>({nome,pessoas:[]}));
+    }
+    appConfig=c;
+    populateForm();
+  }).catch(()=>{
+    appConfig=JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+    populateForm();
+  });
+}
+
+function populateForm(){
+  // Equipes
+  const sel=document.getElementById('f-equipe');
+  sel.innerHTML='';
+  appConfig.equipes.forEach((eq,i)=>{
+    const opt=document.createElement('option');
+    opt.value=i;
+    let display=eq.nome;
+    if(eq.pessoas&&eq.pessoas.length>0){
+      display+=' — '+eq.pessoas.map(p=>p.nome+' ('+p.cargo+')').join(', ');
+    }
+    opt.textContent=display;
+    sel.appendChild(opt);
+  });
+  // Atividades
+  const asel=document.getElementById('f-act-select');
+  asel.innerHTML='';
+  appConfig.atividades.forEach((a,i)=>{
+    const opt=document.createElement('option');
+    opt.value=i;
+    opt.textContent=a.cod+' — '+a.descricao;
+    asel.appendChild(opt);
+  });
+  // Date default
+  const today=new Date();
+  document.getElementById('f-data').value=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+  // Timeline
+  renderTimeline();
+  // KM calc
+  document.getElementById('f-km-ini').addEventListener('input',calcKM);
+  document.getElementById('f-km-fin').addEventListener('input',calcKM);
+}
+
+function calcKM(){
+  const ini=parseFloat(document.getElementById('f-km-ini').value)||0;
+  const fin=parseFloat(document.getElementById('f-km-fin').value)||0;
+  const total=fin-ini;
+  document.getElementById('f-km-total').value=total>0?total.toFixed(1)+' km':'';
+}
+
+function updateIdentLabel(){
+  const tipo=document.getElementById('f-tipo').value;
+  const lbl=document.getElementById('f-id-label');
+  const inp=document.getElementById('f-identificador');
+  const map={
+    'Ocorrência':'Nº da Ocorrência',
+    'Projeto':'Nº do Projeto',
+    'OSE':'Nº da OSE',
+    'Poda':'Nº da Poda',
+    'NDS':'Nº do NDS'
+  };
+  lbl.textContent=map[tipo]||'Identificador';
+  inp.placeholder=map[tipo]||'Identificador';
+}
+
+// --- Section Toggle ---
+function toggleSection(head){
+  head.classList.toggle('collapsed');
+  head.nextElementSibling.classList.toggle('collapsed');
+}
+
+// --- Timeline ---
+function renderTimeline(){
+  const cont=document.getElementById('timeline');
+  cont.innerHTML='';
+  TL_STAGES.forEach((s,i)=>{
+    const st=timelineState[i]||{};
+    const cls=st.done?'done':(st.active?'active':'');
+    const div=document.createElement('div');
+    div.className='tl-stage'+cls?' '+cls:'';
+    div.innerHTML=`<div class="tl-dot" onclick="toggleTLStage(${i})">${i+1}</div>
+      <div class="tl-label">${escapeHtml(s.label)}</div>
+      <div class="tl-time">${st.time||'--:--'}</div>`;
+    cont.appendChild(div);
+  });
+}
+function toggleTLStage(i){
+  const st=timelineState[i]||{};
+  if(st.done){
+    // Undo this and all after
+    for(let j=i;j<TL_STAGES.length;j++) delete timelineState[j];
+    renderTimeline();
+    return;
+  }
+  if(!st.active){
+    // Mark previous as done, this as active
+    for(let j=0;j<i;j++){
+      if(!timelineState[j]) timelineState[j]={};
+      timelineState[j].done=true;
+      timelineState[j].active=false;
+      if(!timelineState[j].time) timelineState[j].time=nowTime();
+    }
+    timelineState[i]={active:true,time:nowTime()};
+  } else {
+    // Complete this stage
+    timelineState[i]={done:true,time:st.time||nowTime()};
+    // Clear all after
+    for(let j=i+1;j<TL_STAGES.length;j++) delete timelineState[j];
+  }
+  renderTimeline();
+}
+function resetTimeline(){
+  timelineState={};
+  renderTimeline();
+}
+
+// --- Clima ---
+function selectClima(el,val){
+  document.querySelectorAll('#clima-opts .check-item').forEach(e=>e.classList.remove('checked'));
+  climaSel=val;
+  el.classList.add('checked');
+}
+
+// --- Impedimento ---
+function toggleImped(el){
+  el.classList.toggle('checked');
+  const text=el.querySelector('.check-text').textContent;
+  const subInput=document.getElementById('imp-material-sub');
+  if(text==='Falta de material'){
+    subInput.classList.toggle('visible',el.classList.contains('checked'));
+  }
+}
+
+// --- Activities ---
+function addActivity(){
+  const idx=parseInt(document.getElementById('f-act-select').value);
+  const qtd=parseInt(document.getElementById('f-act-qtd').value)||1;
+  if(isNaN(idx)) return;
+  const act=appConfig.atividades[idx];
+  activities.push({cod:act.cod,descricao:act.descricao,valor:act.valor,qtd});
+  renderActivities();
+  document.getElementById('f-act-qtd').value=1;
+}
+function removeActivity(i){
+  activities.splice(i,1);
+  renderActivities();
+}
+function renderActivities(){
+  const tbody=document.getElementById('act-tbody');
+  const empty=document.getElementById('act-empty');
+  tbody.innerHTML='';
+  if(activities.length===0){empty.style.display='';return;}
+  empty.style.display='none';
+  activities.forEach((a,i)=>{
+    const total=a.valor*a.qtd;
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td style="font-family:var(--mono);color:var(--amber)">${escapeHtml(a.cod)}</td>
+      <td>${escapeHtml(a.descricao)}</td>
+      <td style="text-align:center">${a.qtd}</td>
+      <td style="font-family:var(--mono)">${fmtMoney(a.valor)}</td>
+      <td style="font-family:var(--mono);color:var(--teal)">${fmtMoney(total)}</td>
+      <td><button class="btn-del" onclick="removeActivity(${i})">✕</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// --- Photos ---
+function handlePhoto(type,files){
+  Array.from(files).forEach(f=>{
+    const reader=new FileReader();
+    reader.onload=function(e){
+      const dataUrl=e.target.result;
+      if(type==='antes') photoAntes.push(dataUrl);
+      else photoDepois.push(dataUrl);
+      renderThumbs(type);
+    };
+    reader.readAsDataURL(f);
+  });
+}
+function renderThumbs(type){
+  const arr=type==='antes'?photoAntes:photoDepois;
+  const cont=document.getElementById('thumbs-'+type);
+  cont.innerHTML='';
+  arr.forEach((src,i)=>{
+    const wrap=document.createElement('div');
+    wrap.className='thumb-wrap';
+    wrap.innerHTML=`<img src="${src}"><button class="thumb-del" onclick="event.stopPropagation();removePhoto('${type}',${i})">✕</button>`;
+    wrap.onclick=function(){openImageViewer(arr,i);};
+    cont.appendChild(wrap);
+  });
+}
+function removePhoto(type,i){
+  if(type==='antes') photoAntes.splice(i,1);
+  else photoDepois.splice(i,1);
+  renderThumbs(type);
+}
+
+// --- Image Viewer ---
+function openImageViewer(images,startIdx){
+  viewerImages=images;
+  viewerIdx=startIdx;
+  document.getElementById('img-viewer-src').src=images[startIdx];
+  document.getElementById('img-viewer-counter').textContent=(startIdx+1)+' / '+images.length;
+  document.getElementById('img-viewer').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeImageViewer(){
+  document.getElementById('img-viewer').classList.remove('open');
+  document.body.style.overflow='';
+}
+function navImageViewer(dir){
+  viewerIdx+=dir;
+  if(viewerIdx<0) viewerIdx=viewerImages.length-1;
+  if(viewerIdx>=viewerImages.length) viewerIdx=0;
+  document.getElementById('img-viewer-src').src=viewerImages[viewerIdx];
+  document.getElementById('img-viewer-counter').textContent=(viewerIdx+1)+' / '+viewerImages.length;
+}
+document.addEventListener('keydown',e=>{
+  if(!document.getElementById('img-viewer').classList.contains('open')) return;
+  if(e.key==='Escape') closeImageViewer();
+  if(e.key==='ArrowLeft') navImageViewer(-1);
+  if(e.key==='ArrowRight') navImageViewer(1);
+});
+
+// --- Save RDO ---
+async function saveRDO(){
+  const btn=document.getElementById('btn-save');
+  const equipeIdx=parseInt(document.getElementById('f-equipe').value);
+  const responsavel=document.getElementById('f-responsavel').value.trim();
+  const tipo=document.getElementById('f-tipo').value;
+  const identificador=document.getElementById('f-identificador').value.trim();
+  const cidade=document.getElementById('f-cidade').value.trim();
+  const data=document.getElementById('f-data').value;
+  const kmIni=document.getElementById('f-km-ini').value;
+  const kmFin=document.getElementById('f-km-fin').value;
+
+  if(!responsavel){toast('Preencha o responsável','error');return;}
+  if(!cidade){toast('Preencha a cidade','error');return;}
+  if(!data){toast('Selecione a data','error');return;}
+
+  // Collect impedimentos
+  const impeds=[];
+  document.querySelectorAll('#impedimento-opts .check-item.checked').forEach(el=>{
+    impeds.push(el.querySelector('.check-text').textContent);
+  });
+  const impMaterialSub=document.getElementById('imp-material-sub').value.trim();
+  if(impeds.includes('Falta de material')&&impMaterialSub) impeds.push('Detalhe: '+impMaterialSub);
+
+  // Collect timeline
+  const tlData={};
+  TL_STAGES.forEach((s,i)=>{
+    const st=timelineState[i];
+    if(st) tlData[s.key]=st.time||null;
+  });
+
+  btn.disabled=true;
+  btn.classList.add('loading');
+
+  try{
+    // Upload photos
+    const antesUrls=[];
+    const depoisUrls=[];
+    for(let i=0;i<photoAntes.length;i++){
+      antesUrls.push(await uploadToImgbb(photoAntes[i]));
+    }
+    for(let i=0;i<photoDepois.length;i++){
+      depoisUrls.push(await uploadToImgbb(photoDepois[i]));
+    }
+
+    const equipeObj=appConfig.equipes[equipeIdx]||{nome:'',pessoas:[]};
+
+    const record={
+      id:genId(),
+      equipe:equipeObj.nome,
+      equipeDetalhes:{nome:equipeObj.nome,pessoas:equipeObj.pessoas||[]},
+      responsavel,
+      tipoOrdem:tipo,
+      identificador,
+      cidade,
+      data,
+      kmInicial:parseFloat(kmIni)||0,
+      kmFinal:parseFloat(kmFin)||0,
+      linhaDoTurno:tlData,
+      linhaDoTurnoObs:document.getElementById('f-tl-obs').value.trim(),
+      condicoesClimaticas:climaSel,
+      impedimentos:impeds,
+      impedimentoObs:document.getElementById('f-imp-obs').value.trim(),
+      atividades:activities.map(a=>({cod:a.cod,descricao:a.descricao,valor:a.valor,qtd:a.qtd,total:a.valor*a.qtd})),
+      fotosAntes:antesUrls,
+      fotosDepois:depoisUrls,
+      criadoPor:loggedUser,
+      criadoEm:new Date().toISOString()
+    };
+
+    await db.ref(RECORD_KEY(record.id)).set(record);
+    toast('RDO salvo com sucesso!','success');
+    resetForm();
+  }catch(e){
+    console.error(e);
+    toast('Erro ao salvar: '+e.message,'error');
+  }finally{
+    btn.disabled=false;
+    btn.classList.remove('loading');
+  }
+}
+
+function resetForm(){
+  document.getElementById('f-responsavel').value='';
+  document.getElementById('f-identificador').value='';
+  document.getElementById('f-km-ini').value='';
+  document.getElementById('f-km-fin').value='';
+  document.getElementById('f-km-total').value='';
+  document.getElementById('f-tl-obs').value='';
+  document.getElementById('f-imp-obs').value='';
+  document.getElementById('imp-material-sub').value='';
+  document.getElementById('imp-material-sub').classList.remove('visible');
+  activities=[];
+  photoAntes=[];
+  photoDepois=[];
+  timelineState={};
+  climaSel='';
+  impedSel=[];
+  renderActivities();
+  renderThumbs('antes');
+  renderThumbs('depois');
+  renderTimeline();
+  document.querySelectorAll('#clima-opts .check-item').forEach(e=>e.classList.remove('checked'));
+  document.querySelectorAll('#impedimento-opts .check-item').forEach(e=>e.classList.remove('checked'));
+  updateIdentLabel();
+}
+
+// --- Detail Modal ---
+function openDetailModal(recordId){
+  db.ref(RECORD_KEY(recordId)).once('value',snap=>{
+    const r=snap.val();
+    if(!r){toast('Registro não encontrado','error');return;}
+    showDetailModal(r);
+  });
+}
+function showDetailModal(r){
+  const c=document.getElementById('detail-content');
+  c.innerHTML='';
+
+  const addField=(label,val)=>{
+    c.innerHTML+=`<div class="detail-item"><label>${escapeHtml(label)}</label><p>${escapeHtml(val||'—')}</p></div>`;
+  };
+
+  addField('Data',formatDate(r.data));
+  addField('Equipe',r.equipe);
+  addField('Responsável',r.responsavel);
+  addField('Tipo de Ordem',r.tipoOrdem);
+  addField('Identificador',r.identificador);
+  addField('Cidade',r.cidade);
+  addField('KM Inicial',r.kmInicial);
+  addField('KM Final',r.kmFinal);
+
+  // Equipe detalhes
+  if(r.equipeDetalhes&&r.equipeDetalhes.pessoas&&r.equipeDetalhes.pessoas.length>0){
+    c.innerHTML+=`<div class="detail-section-title">Equipe — ${escapeHtml(r.equipeDetalhes.nome)}</div>`;
+    r.equipeDetalhes.pessoas.forEach(p=>{
+      c.innerHTML+=`<div class="team-member" style="grid-column:1/-1"><span>${escapeHtml(p.nome)}</span><span class="team-cargo">${escapeHtml(p.cargo)}</span></div>`;
+    });
+  }
+
+  // Linha do turno
+  if(r.linhaDoTurno){
+    c.innerHTML+=`<div class="detail-section-title">Linha do Turno</div>`;
+    TL_STAGES.forEach(s=>{
+      const time=r.linhaDoTurno[s.key];
+      if(time){
+        c.innerHTML+=`<div class="detail-item"><label>${escapeHtml(s.label)}</label><p style="font-family:var(--mono)">${escapeHtml(time)}</p></div>`;
+      }
+    });
+  }
+
+  addField('Condições Climáticas',r.condicoesClimaticas);
+
+  // Impedimentos
+  if(r.impedimentos&&r.impedimentos.length>0){
+    c.innerHTML+=`<div class="detail-item detail-full"><label>Impedimentos</label><p>${r.impedimentos.map(escapeHtml).join(', ')}</p></div>`;
+  }
+
+  // Atividades
+  if(r.atividades&&r.atividades.length>0){
+    c.innerHTML+=`<div class="detail-section-title">Atividades Executadas</div>`;
+    let totalGeral=0;
+    r.atividades.forEach(a=>{
+      totalGeral+=a.total||0;
+      c.innerHTML+=`<div class="detail-item" style="grid-column:1/-1;display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line-soft)">
+        <span>${escapeHtml(a.cod)} — ${escapeHtml(a.descricao)}</span>
+        <span style="font-family:var(--mono);white-space:nowrap">${a.qtd}x ${fmtMoney(a.valor)} = <strong style="color:var(--teal)">${fmtMoney(a.total)}</strong></span>
+      </div>`;
+    });
+    c.innerHTML+=`<div class="detail-item" style="grid-column:1/-1;text-align:right;font-size:.95rem;margin-top:4px"><strong>Total: <span style="color:var(--teal);font-family:var(--mono)">${fmtMoney(totalGeral)}</span></strong></div>`;
+  }
+
+  // Fotos
+  const allPhotos=[];
+  if(r.fotosAntes&&r.fotosAntes.length>0){
+    c.innerHTML+=`<div class="detail-section-title">Fotos Antes</div>`;
+    c.innerHTML+=`<div class="detail-photos" id="detail-photos-antes"></div>`;
+    const wrap=document.getElementById('detail-photos-antes');
+    r.fotosAntes.forEach((url,i)=>{
+      allPhotos.push(url);
+      const div=document.createElement('div');
+      div.className='detail-thumbs';
+      div.innerHTML=`<img src="${url}">`;
+      div.onclick=function(){openImageViewer(r.fotosAntes,i);};
+      wrap.appendChild(div);
+    });
+  }
+  if(r.fotosDepois&&r.fotosDepois.length>0){
+    c.innerHTML+=`<div class="detail-section-title">Fotos Depois</div>`;
+    c.innerHTML+=`<div class="detail-photos" id="detail-photos-depois"></div>`;
+    const wrap=document.getElementById('detail-photos-depois');
+    r.fotosDepois.forEach((url,i)=>{
+      allPhotos.push(url);
+      const div=document.createElement('div');
+      div.className='detail-thumbs';
+      div.innerHTML=`<img src="${url}">`;
+      div.onclick=function(){openImageViewer(r.fotosDepois,i);};
+      wrap.appendChild(div);
+    });
+  }
+
+  document.getElementById('detail-title').textContent='RDO — '+formatDate(r.data)+' — '+escapeHtml(r.equipe);
+  document.getElementById('detail-modal').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeDetailModal(){
+  document.getElementById('detail-modal').classList.remove('open');
+  document.body.style.overflow='';
+}
+
+// --- Init ---
+async function ensureDefaultAdmin(){
+  try{
+    const snap=await db.ref('rdo/users/admin').once('value');
+    if(!snap.val()){await db.ref('rdo/users/admin').set({senha:'admin123'});}
+  }catch(e){console.error('ensureDefaultAdmin',e);}
+}
+document.getElementById('login-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+(async()=>{await ensureDefaultAdmin();checkSession();})();
+</script>
+</body>
+</html>
