@@ -119,6 +119,11 @@ input[type=file]::-webkit-file-upload-button{display:none}
 .btn-add-act:hover{border-color:var(--amber);color:var(--amber)}
 .act-add-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
 .act-add-row .form-group{flex:1;min-width:120px}
+.act-fav-wrap{display:flex;align-items:end;gap:0}
+.act-fav-wrap .form-group{flex:1;min-width:120px}
+.btn-fav{height:42px;width:42px;min-width:42px;display:flex;align-items:center;justify-content:center;background:var(--panel-alt);border:1px solid var(--line-soft);border-radius:6px;color:var(--text-faint);font-size:1.1rem;cursor:pointer;transition:all .2s;margin-top:auto}
+.btn-fav:hover{border-color:var(--amber);color:var(--amber)}
+.btn-fav.active{border-color:var(--amber);background:rgba(242,169,59,.1);color:var(--amber)}
 
 /* PHOTOS */
 .photo-row{display:flex;gap:16px;flex-wrap:wrap}
@@ -440,9 +445,12 @@ input[type=file]::-webkit-file-upload-button{display:none}
       </div>
       <div class="section-body">
         <div class="act-add-row" style="margin-bottom:14px">
-          <div class="form-group" style="flex:2">
-            <label>Atividade</label>
-            <select id="f-act-select"></select>
+          <div class="act-fav-wrap" style="flex:2">
+            <div class="form-group">
+              <label>Atividade</label>
+              <select id="f-act-select" onchange="updateFavBtn()"></select>
+            </div>
+            <button class="btn-fav" id="btn-fav-act" onclick="toggleFavoriteAct()" title="Favoritar atividade selecionada">★</button>
           </div>
           <div class="form-group" style="flex:.6">
             <label>Quantidade</label>
@@ -1089,14 +1097,7 @@ function populateForm(){
     sel.appendChild(opt);
   });
 
-  const asel=document.getElementById('f-act-select');
-  asel.innerHTML='';
-  appConfig.atividades.forEach((a,i)=>{
-    const opt=document.createElement('option');
-    opt.value=i;
-    opt.textContent=a.cod+' — '+a.descricao;
-    asel.appendChild(opt);
-  });
+  populateActSelect();
 
   const today=new Date();
   document.getElementById('f-data').value=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
@@ -1228,6 +1229,53 @@ function toggleImped(el){
 }
 
 // ==================== ACTIVITIES ====================
+function getFavorites(){
+  try{return JSON.parse(localStorage.getItem('rdo_act_favorites')||'[]');}catch(e){return [];}
+}
+function saveFavorites(favs){
+  localStorage.setItem('rdo_act_favorites',JSON.stringify(favs));
+}
+function toggleFavoriteAct(){
+  const sel=document.getElementById('f-act-select');
+  const idx=parseInt(sel.value);
+  if(isNaN(idx))return;
+  const act=appConfig.atividades[idx];
+  if(!act)return;
+  const favs=getFavorites();
+  const codIdx=favs.indexOf(act.cod);
+  if(codIdx>=0){favs.splice(codIdx,1);}else{favs.push(act.cod);}
+  saveFavorites(favs);
+  populateActSelect();
+  updateFavBtn();
+}
+function updateFavBtn(){
+  const sel=document.getElementById('f-act-select');
+  const idx=parseInt(sel.value);
+  const btn=document.getElementById('btn-fav-act');
+  if(isNaN(idx)||!appConfig.atividades[idx]){btn.classList.remove('active');return;}
+  const act=appConfig.atividades[idx];
+  const favs=getFavorites();
+  btn.classList.toggle('active',favs.includes(act.cod));
+}
+function populateActSelect(){
+  const asel=document.getElementById('f-act-select');
+  const prevVal=asel.value;
+  asel.innerHTML='';
+  const favs=getFavorites();
+  const favActs=[];
+  const normalActs=[];
+  appConfig.atividades.forEach((a,i)=>{
+    if(favs.includes(a.cod)){favActs.push({a,i});}else{normalActs.push({a,i});}
+  });
+  [...favActs,...normalActs].forEach(({a,i})=>{
+    const opt=document.createElement('option');
+    opt.value=i;
+    opt.textContent=(favs.includes(a.cod)?'★ ':'')+a.cod+' — '+a.descricao;
+    asel.appendChild(opt);
+  });
+  if(prevVal) asel.value=prevVal;
+  updateFavBtn();
+}
 function addActivity(){
   const idx=parseInt(document.getElementById('f-act-select').value);
   const qtd=parseInt(document.getElementById('f-act-qtd').value)||1;
