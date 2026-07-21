@@ -131,13 +131,38 @@ input[type=file]::-webkit-file-upload-button{display:none}
 .thumb-wrap:hover .thumb-del{opacity:1}
 
 /* SAVE */
-.save-bar{position:fixed;bottom:0;left:0;right:0;background:var(--panel);border-top:1px solid var(--line-soft);padding:14px 20px;display:flex;align-items:center;justify-content:center;z-index:100}
+.save-bar{position:fixed;bottom:0;left:0;right:0;background:var(--panel);border-top:1px solid var(--line-soft);padding:14px 20px;display:flex;align-items:center;justify-content:center;gap:10px;z-index:100}
 .btn-save{padding:12px 40px;background:var(--amber);color:#111;font-family:var(--display);font-size:1rem;font-weight:600;border-radius:8px;letter-spacing:.5px;transition:opacity .2s;position:relative}
 .btn-save:hover{opacity:.88}
 .btn-save:disabled{opacity:.5;cursor:not-allowed}
 .btn-save .spinner{display:none;width:18px;height:18px;border:2px solid transparent;border-top-color:#111;border-radius:50%;animation:spin .6s linear infinite;margin-right:8px;vertical-align:middle}
 .btn-save.loading .spinner{display:inline-block}
 @keyframes spin{to{transform:rotate(360deg)}}
+.btn-produtividade{padding:12px 24px;background:var(--amber);color:#111;font-family:var(--display);font-size:.9rem;font-weight:600;border-radius:8px;letter-spacing:.5px;transition:opacity .2s;white-space:nowrap}
+.btn-produtividade:hover{opacity:.88}
+
+/* CONFIRM SAVE MODAL */
+.confirm-save-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .25s}
+.confirm-save-overlay.open{opacity:1;pointer-events:auto}
+.confirm-save-box{background:var(--panel);border:1px solid var(--line-soft);border-radius:var(--radius);width:100%;max-width:480px;padding:28px;position:relative}
+.confirm-save-icon{text-align:center;font-size:2.5rem;margin-bottom:12px}
+.confirm-save-box h2{font-family:var(--display);color:var(--amber);font-size:1.1rem;margin-bottom:12px;text-align:center}
+.confirm-save-msg{font-size:.88rem;color:var(--text-muted);line-height:1.6;margin-bottom:20px;text-align:center}
+.confirm-save-msg strong{color:var(--danger)}
+.confirm-ciente{display:flex;align-items:center;gap:10px;background:var(--panel-alt);border:1px solid var(--line-soft);border-radius:8px;padding:14px 16px;cursor:pointer;transition:all .2s;margin-bottom:20px}
+.confirm-ciente:hover{border-color:var(--amber)}
+.confirm-ciente.checked{border-color:var(--amber);background:rgba(242,169,59,.08)}
+.confirm-ciente .check-box{width:22px;height:22px;border:2px solid var(--line);border-radius:5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;font-size:.75rem;color:transparent;font-weight:700}
+.confirm-ciente.checked .check-box{border-color:var(--amber);background:var(--amber);color:#111}
+.confirm-ciente .check-label{font-size:.88rem;color:var(--text-muted);font-weight:500}
+.confirm-ciente.checked .check-label{color:var(--text)}
+.confirm-save-actions{display:flex;gap:10px}
+.confirm-save-actions button{flex:1;padding:12px;border-radius:8px;font-weight:700;font-size:.92rem;border:none;cursor:pointer;transition:opacity .2s}
+.btn-confirm-save{background:var(--amber);color:#111}
+.btn-confirm-save:disabled{opacity:.4;cursor:not-allowed}
+.btn-confirm-save:not(:disabled):hover{opacity:.88}
+.btn-cancel-save{background:var(--panel-alt);color:var(--text-muted);border:1px solid var(--line-soft) !important}
+.btn-cancel-save:hover{border-color:var(--danger) !important;color:var(--danger)}
 
 /* TOAST */
 #toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--line-soft);border-radius:8px;padding:12px 24px;color:var(--text);font-size:.88rem;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;max-width:90vw;text-align:center}
@@ -461,10 +486,11 @@ input[type=file]::-webkit-file-upload-button{display:none}
 
   <!-- Save Bar -->
   <div class="save-bar">
-    <button class="btn-save" id="btn-save" onclick="saveRDO()" style="flex:0">
+    <button class="btn-save" id="btn-save" onclick="openConfirmSaveModal()" style="flex:0">
       <span class="spinner"></span>Salvar RDO
     </button>
-    <button class="btn-ghost" id="btn-pending" onclick="openPendingModal()" style="display:none;margin-left:10px;white-space:nowrap">
+    <button class="btn-produtividade" onclick="openMinhaProdutividade()">Minha Produtividade</button>
+    <button class="btn-ghost" id="btn-pending" onclick="openPendingModal()" style="display:none;white-space:nowrap">
       <span id="pending-badge" style="background:var(--amber);color:#111;border-radius:50%;padding:1px 6px;font-weight:700;margin-right:4px">0</span>
       Pendentes
     </button>
@@ -497,6 +523,37 @@ input[type=file]::-webkit-file-upload-button{display:none}
     <div id="summary-content"></div>
     <div style="text-align:center;margin-top:16px">
       <button class="btn-primary" onclick="closeSummary()" style="max-width:200px;margin:0 auto;display:block">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Save Modal -->
+<div class="confirm-save-overlay" id="confirm-save-modal" onclick="if(event.target===this)closeConfirmSave()">
+  <div class="confirm-save-box">
+    <div class="confirm-save-icon">⚠️</div>
+    <h2>Atenção - Baremos de Produtividade</h2>
+    <div class="confirm-save-msg">
+      Os baremos lançados, <strong>se lançados incorretamente ou em quantidade superior ao executado</strong>, ou com <strong>evidências insuficientes ou de baixa qualidade</strong>, poderá <strong>afetar o valor total faturado</strong> para este dia.
+    </div>
+    <label class="confirm-ciente" id="confirm-ciente-check" onclick="toggleConfirmCiente()">
+      <span class="check-box">✓</span>
+      <span class="check-label">Estou ciente das responsabilidades acima</span>
+    </label>
+    <div class="confirm-save-actions">
+      <button class="btn-cancel-save" onclick="closeConfirmSave()">Cancelar</button>
+      <button class="btn-confirm-save" id="btn-confirm-save" disabled onclick="confirmSaveRDO()">Salvar RDO</button>
+    </div>
+  </div>
+</div>
+
+<!-- Minha Produtividade Modal -->
+<div class="modal-overlay" id="produtividade-modal" onclick="if(event.target===this)closeMinhaProdutividade()">
+  <div class="modal-box" style="max-width:500px">
+    <button class="modal-close" onclick="closeMinhaProdutividade()">✕</button>
+    <h2 style="color:var(--teal)">Minha Produtividade</h2>
+    <div id="produtividade-content"></div>
+    <div style="text-align:center;margin-top:16px">
+      <button class="btn-primary" onclick="closeMinhaProdutividade()" style="max-width:200px;margin:0 auto;display:block">Fechar</button>
     </div>
   </div>
 </div>
@@ -1259,6 +1316,14 @@ function navImageViewer(dir){
   document.getElementById('img-viewer-counter').textContent=(viewerIdx+1)+' / '+viewerImages.length;
 }
 document.addEventListener('keydown',e=>{
+  if(document.getElementById('confirm-save-modal').classList.contains('open')){
+    if(e.key==='Escape') closeConfirmSave();
+    return;
+  }
+  if(document.getElementById('produtividade-modal').classList.contains('open')){
+    if(e.key==='Escape') closeMinhaProdutividade();
+    return;
+  }
   if(!document.getElementById('img-viewer').classList.contains('open')) return;
   if(e.key==='Escape') closeImageViewer();
   if(e.key==='ArrowLeft') navImageViewer(-1);
@@ -1266,6 +1331,109 @@ document.addEventListener('keydown',e=>{
 });
 
 // ==================== SAVE RDO ====================
+function openConfirmSaveModal(){
+  document.getElementById('confirm-save-modal').classList.add('open');
+  document.getElementById('confirm-ciente-check').classList.remove('checked');
+  document.getElementById('btn-confirm-save').disabled=true;
+  document.body.style.overflow='hidden';
+}
+function closeConfirmSave(){
+  document.getElementById('confirm-save-modal').classList.remove('open');
+  document.body.style.overflow='';
+}
+function toggleConfirmCiente(){
+  const el=document.getElementById('confirm-ciente-check');
+  el.classList.toggle('checked');
+  document.getElementById('btn-confirm-save').disabled=!el.classList.contains('checked');
+}
+function confirmSaveRDO(){
+  closeConfirmSave();
+  saveRDO();
+}
+async function openMinhaProdutividade(){
+  const c=document.getElementById('produtividade-content');
+  const data=document.getElementById('f-data').value;
+  const equipeIdx=parseInt(document.getElementById('f-equipe').value);
+  const equipeObj=appConfig.equipes[equipeIdx]||{nome:''};
+  const equipeNome=equipeObj.nome||'';
+
+  c.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-muted)">Carregando...</div>';
+  document.getElementById('produtividade-modal').classList.add('open');
+  document.body.style.overflow='hidden';
+
+  let allAtividades=[];
+  let valorTotalGeral=0;
+  let registrosHoje=0;
+
+  try{
+    const data=await dataGet(RECORDS_PREFIX);
+    if(data){
+      Object.keys(data).forEach(k=>{
+        const r=data[k];
+        if(r.data===document.getElementById('f-data').value && r.equipe===equipeNome && r.atividades && r.atividades.length>0){
+          registrosHoje++;
+          r.atividades.forEach(a=>{
+            const total=a.total||(a.qtd||0)*(a.valor||0);
+            allAtividades.push({cod:a.cod,descricao:a.descricao,valor:a.valor,qtd:a.qtd,total:total});
+            valorTotalGeral+=total;
+          });
+        }
+      });
+    }
+  }catch(e){console.warn('Erro ao buscar registros do banco',e);}
+
+  try{
+    const pending=JSON.parse(localStorage.getItem('rdo_pending')||'[]');
+    pending.forEach(r=>{
+      if(r.data===document.getElementById('f-data').value && r.equipe===equipeNome && r.atividades && r.atividades.length>0){
+        registrosHoje++;
+        r.atividades.forEach(a=>{
+          const total=a.total||(a.qtd||0)*(a.valor||0);
+          allAtividades.push({cod:a.cod,descricao:a.descricao,valor:a.valor,qtd:a.qtd,total:total});
+          valorTotalGeral+=total;
+        });
+      }
+    });
+  }catch(e){}
+
+  if(activities.length>0){
+    activities.forEach(a=>{
+      const total=a.valor*a.qtd;
+      allAtividades.push({cod:a.cod,descricao:a.descricao,valor:a.valor,qtd:a.qtd,total:total});
+      valorTotalGeral+=total;
+    });
+  }
+
+  let html='';
+  html+='<div class="detail-grid" style="margin-bottom:16px">';
+  html+='<div class="detail-item"><label>Data</label><p>'+formatDate(data)+'</p></div>';
+  html+='<div class="detail-item"><label>Equipe</label><p>'+escapeHtml(equipeNome||'—')+'</p></div>';
+  html+='<div class="detail-item"><label>RDOs Salvos Hoje</label><p style="color:var(--teal);font-weight:700">'+registrosHoje+'</p></div>';
+  html+='</div>';
+
+  if(allAtividades.length>0){
+    html+='<div style="border-top:1px solid var(--line-soft);padding-top:12px">';
+    html+='<div style="font-size:.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Atividades Executadas</div>';
+    allAtividades.forEach(a=>{
+      html+='<div class="act-row-detail">';
+      html+='<span style="font-size:.88rem">'+escapeHtml(a.cod)+' — '+escapeHtml(a.descricao)+'</span>';
+      html+='<span style="font-family:var(--mono);white-space:nowrap;font-size:.88rem">'+a.qtd+'x '+fmtMoney(a.valor)+' = <strong style="color:var(--teal)">'+fmtMoney(a.total)+'</strong></span>';
+      html+='</div>';
+    });
+    html+='<div style="text-align:right;font-size:1rem;font-weight:700;padding:10px 0">';
+    html+='Total do Dia: <span style="color:var(--teal);font-family:var(--mono)">'+fmtMoney(valorTotalGeral)+'</span>';
+    html+='</div>';
+    html+='</div>';
+  }else{
+    html+='<div style="text-align:center;color:var(--text-faint);font-size:.85rem;padding:20px 0;border-top:1px solid var(--line-soft)">Nenhuma atividade registrada para esta equipe hoje</div>';
+  }
+
+  c.innerHTML=html;
+}
+function closeMinhaProdutividade(){
+  document.getElementById('produtividade-modal').classList.remove('open');
+  document.body.style.overflow='';
+}
 async function saveRDO(){
   const btn=document.getElementById('btn-save');
   const equipeIdx=parseInt(document.getElementById('f-equipe').value);
